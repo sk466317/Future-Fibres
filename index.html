@@ -315,9 +315,10 @@
             if (id === 'viewSearch') resetSearchForm();
         };
 
-        // --- AUTH & DATA LOADING (FIXED FOR MOBILE CONNECTING ISSUE) ---
+        // --- AUTH & DATA LOADING ---
         const initAuth = async () => {
             try { 
+                document.getElementById('cloudLabel').innerText = "AUTHENTICATING...";
                 await signInAnonymously(auth); 
             } catch (e) { 
                 console.error("Auth error", e);
@@ -325,13 +326,13 @@
             }
         };
 
-        // Execute immediately to prevent mobile Chrome from blocking background process
+        // Call initAuth immediately so mobile Chrome doesn't throttle it
         initAuth();
 
         window.loadData = async (force = false) => {
             if (!auth.currentUser) return;
             document.getElementById('loadingOverlay').classList.remove('hidden');
-            document.getElementById('loadingLabel').innerText = "SYNCHRONIZING CLOUD...";
+            document.getElementById('loadingLabel').innerText = "WAIT !!! CONNECTING...";
             try {
                 const metaRef = doc(db, 'artifacts', appId, 'public', 'data', 'report_meta', 'latest');
                 const metaSnap = await getDoc(metaRef);
@@ -345,7 +346,7 @@
                             if (chunkSnap.exists()) fullStr += chunkSnap.data().data;
                         }
                         if (fullStr) rawSheets = JSON.parse(fullStr);
-                        document.getElementById('cloudLabel').innerText = "ONLINE";
+                        document.getElementById('cloudLabel').innerText = "CONNECTED & ONLINE";
                         document.getElementById('cloudIndicator').className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
                     }
                 }
@@ -356,6 +357,33 @@
         onAuthStateChanged(auth, u => { 
             if(u) { window.loadData(true); } 
         });
+
+        window.saveToCloud = async () => {
+            if (!auth.currentUser) return false;
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+            document.getElementById('loadingLabel').innerText = "SYNCING CLOUD...";
+            try {
+                const str = JSON.stringify(rawSheets);
+                const chunkSize = 500000; 
+                const chunkCount = Math.ceil(str.length / chunkSize);
+                for (let i = 0; i < chunkCount; i++) {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'report_chunks', `chunk_${i}`), { data: str.substring(i*chunkSize, (i+1)*chunkSize) });
+                }
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'report_meta', 'latest'), { chunkCount, updatedAt: new Date().toISOString() });
+                return true;
+            } catch (e) { 
+                alert("Save Failed"); 
+                return false; 
+            } finally { 
+                document.getElementById('loadingOverlay').classList.add('hidden'); 
+            }
+        };
+
+        // Local Save Button connection
+        document.getElementById('saveLocalChangesBtn').onclick = async () => { 
+            await window.saveToCloud(); 
+            alert("Saved."); 
+        };
 
         // --- HELPERS ---
         const formatToDDMMYYYY = (val) => {
@@ -414,7 +442,7 @@
             });
         };
 
-        // --- SEARCH ENGINE (VESSEL-WISE EXACT RESTORATION) ---
+        // --- SEARCH ENGINE ---
         document.getElementById('smtpBlSearch').oninput = (e) => {
             const searchVal = e.target.value.trim().toUpperCase();
             const resultBox = document.getElementById('searchResultBox');
@@ -522,7 +550,7 @@
             lucide.createIcons();
         };
 
-        // --- WHATSAPP MESSAGE RESTORED (EXACT EMOJI & TRAIN LOGIC) ---
+        // --- WHATSAPP LOGIC ---
         window.sendWhatsApp = (shipper, vessel, date, searchVal) => {
             const smtpE = window.getFilteredSmtp(shipper, vessel, date, searchVal);
             const webE = rawSheets.website.slice(1).filter(w => smtpE.some(s => String(s[2]).trim().toUpperCase() === String(w[3]).trim().toUpperCase()));
@@ -608,7 +636,7 @@
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
         };
 
-        // --- PDF RESTORED (EXACT LETTERHEAD FORMAT) ---
+        // --- PDF LOGIC ---
         window.generatePDF = async (shipper, vessel, date, searchVal) => {
             const smtpEntries = window.getFilteredSmtp(shipper, vessel, date, searchVal);
             const webEntries = rawSheets.website.slice(1).filter(w => smtpEntries.some(s => String(s[2]).trim().toUpperCase() === String(w[3]).trim().toUpperCase()));
@@ -698,8 +726,10 @@
             const rake = document.getElementById('rakeSelect').value;
             const rawDate = document.getElementById('arrivedDateInput').value;
             if (!rake || !rawDate) return alert("Select Rake & Time");
+            
             const d = new Date(rawDate);
             const fmt = `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            
             let count = 0;
             rawSheets.website.slice(1).forEach(row => {
                 if (String(row[4]).trim() === rake && String(row[9] || '').toUpperCase().includes("RAILOUT FROM")) {
@@ -818,9 +848,7 @@
         };
         document.getElementById('uploadCsvToHtplBtn').onclick = () => csvInput.click();
 
-        document.getElementById('saveLocalChangesBtn').onclick = async () => { await window.saveToCloud(); alert("Saved."); };
-
-        // --- SINGLE & DOUBLE STACK UPDATE LOGIC (RESTORED & FIXED) ---
+        // --- SINGLE & DOUBLE STACK UPDATE LOGIC ---
         document.getElementById('websiteExcelInput').onchange = (e) => processStackExcel(e, 'single');
         document.getElementById('doubleStackExcelInput').onchange = (e) => processStackExcel(e, 'double');
 
@@ -855,7 +883,6 @@
                 if(!rakeNo) return alert("Rake No not found!");
 
                 if (type === 'single') {
-                    // Trigger Summary Modal for Single Stack
                     const formattedDate = dateStr ? `${dateStr} ${timeStr}` : formatToDDMMYYYY_HHMM(new Date());
                     let etaStr = '';
                     try {
@@ -881,7 +908,6 @@
 
                     showUpdateSummaryModal(rakeNo, formattedDate, conts.length, updatedContainers, notUpdatedContainers);
                 } else {
-                    // Double Stack: Trigger Manual Date
                     pendingExcelUpdateData = { rakeNo, date: dateStr || formatToDDMMYYYY(new Date()), time: timeStr, containers: conts };
                     document.getElementById('manualDateModal').classList.remove('hidden');
                     document.getElementById('manualRailDateInput').value = `${pendingExcelUpdateData.date} ${pendingExcelUpdateData.time}`;
@@ -891,7 +917,6 @@
             e.target.value = '';
         }
 
-        // Summary Modal Logic (Single Stack)
         function showUpdateSummaryModal(rake, date, totalCount, updates, notUpdates) {
             const notUpdatedListHtml = notUpdates.length > 0 
                 ? notUpdates.map(item => {
@@ -941,30 +966,6 @@
                 await window.saveToCloud(); alert(`Successfully Updated ${updates.length} Containers!`); closeModal();
             };
         }
-
-        // Manual Date Logic (Double Stack)
-        document.getElementById('submitManualDateBtn').onclick = async () => {
-            const dt = document.getElementById('manualRailDateInput').value.trim();
-            if (!dt || !pendingExcelUpdateData) return;
-            const p = dt.split(' ')[0].split('-'); const railDate = new Date(p[2], p[1]-1, p[0]);
-            const eta = new Date(railDate); eta.setDate(eta.getDate() + 4);
-            const etaStr = ` ETA ${String(eta.getDate()).padStart(2,'0')}-${String(eta.getMonth()+1).padStart(2,'0')}-${eta.getFullYear()} 00:00`;
-            const remark = `RAILOUT FROM MUNDRA ON ${dt}${etaStr}`;
-
-            let count = 0;
-            pendingExcelUpdateData.containers.forEach(item => {
-                const idx = rawSheets.website.findIndex(w => String(w[3]).trim().toUpperCase() === item.cont);
-                if (idx !== -1) {
-                    rawSheets.website[idx][4] = `${pendingExcelUpdateData.rakeNo}${item.stack !== 'Lower' ? '-'+item.stack : ''}`;
-                    rawSheets.website[idx][8] = dt; rawSheets.website[idx][9] = remark;
-                    count++;
-                }
-            });
-            await saveToCloud(); alert(`Updated ${count} containers.`);
-            document.getElementById('manualDateModal').classList.add('hidden');
-        };
-
-        document.getElementById('cancelManualDateBtn').onclick = () => document.getElementById('manualDateModal').classList.add('hidden');
 
         // --- SMTP UPLOAD ---
         document.getElementById('smtpExcelInput').onchange = (e) => {
@@ -1023,13 +1024,70 @@
             reader.readAsBinaryString(e.target.files[0]);
         };
 
+        // --- ADD SHIPPER TOOLS ---
+        function resetAddShipperForm() {
+            matchedContainers = []; document.getElementById('manualBlInput').value = '';
+            document.getElementById('manualShipperNameInput').value = ''; document.getElementById('blMatchStatus').innerText = '';
+            document.getElementById('containerPreviewArea').classList.add('hidden'); document.getElementById('previewList').innerHTML = '';
+        }
+
+        document.getElementById('manualBlInput').oninput = (e) => {
+            const bl = e.target.value.trim().toUpperCase();
+            const status = document.getElementById('blMatchStatus');
+            if (bl.length < 4) { status.innerText = ''; return; }
+            const matches = rawSheets.smtp.slice(1).filter(r => String(r[9] || '').toUpperCase() === bl);
+            if (matches.length > 0) {
+                matchedContainers = matches.map(r => ({ cont: String(r[2]).trim(), size: String(r[3]).includes('40') ? '40' : '20', bl: bl }));
+                status.innerText = `✅ Found ${matches.length} containers in SMTP`;
+                document.getElementById('manualShipperNameInput').value = matches[0][24] || '';
+                renderPreview();
+            } else { status.innerText = '⚠️ B/L not in SMTP. Add manual.'; }
+        };
+
+        window.removeTempCont = (idx) => { matchedContainers.splice(idx, 1); renderPreview(); };
+
+        function renderPreview() {
+            const area = document.getElementById('containerPreviewArea');
+            const list = document.getElementById('previewList');
+            if (matchedContainers.length) {
+                area.classList.remove('hidden');
+                list.innerHTML = matchedContainers.map((m, i) => `<li class="flex justify-between items-center bg-teal-50 p-3 rounded-xl border border-teal-100"><span class="text-xs font-black text-teal-800 tracking-tight">${m.cont} (${m.size}")</span><button onclick="window.removeTempCont(${i})" class="text-rose-500"><i data-lucide="x-circle" class="w-4 h-4"></i></button></li>`).join('');
+                lucide.createIcons();
+            } else area.classList.add('hidden');
+        }
+
+        document.getElementById('addManualToPreviewBtn').onclick = () => {
+            const cont = document.getElementById('manualSingleCont').value.trim().toUpperCase();
+            const size = document.getElementById('manualSingleSize').value;
+            if (!cont) return;
+            if (matchedContainers.some(m => m.cont === cont)) return alert("Already added.");
+            matchedContainers.push({ cont, size, bl: document.getElementById('manualBlInput').value || 'MANUAL' });
+            document.getElementById('manualSingleCont').value = '';
+            renderPreview();
+        };
+
+        document.getElementById('saveManualShipperBtn').onclick = async () => {
+            const name = document.getElementById('manualShipperNameInput').value.trim().toUpperCase();
+            if (!name || !matchedContainers.length) return alert("Missing name or containers");
+            let added = 0;
+            matchedContainers.forEach(m => { if (!rawSheets.shipper.some(s => String(s[0]).trim() === m.cont)) { rawSheets.shipper.push([m.cont, m.size, m.bl, name]); added++; } });
+            if (added > 0) { await window.saveToCloud(); alert(`Success! ${added} containers linked.`); resetAddShipperForm(); }
+            else alert("No new containers added.");
+        };
+
         // --- AUTH BUTTON ---
         document.getElementById('authBtn').onclick = () => {
             if (document.getElementById('loginPassword').value === "16111980") {
                 document.getElementById('loginScreen').style.opacity = '0';
                 setTimeout(() => document.getElementById('loginScreen').classList.add('hidden'), 500);
-                if (!auth.currentUser) initAuth();
-            } else document.getElementById('loginError').classList.remove('hidden');
+                if (!auth.currentUser) {
+                    initAuth();
+                } else {
+                    window.loadData(true);
+                }
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+            }
         };
 
         // --- FNR TRACKING ---
@@ -1051,7 +1109,7 @@
             rawSheets.website.slice(1).forEach(row => {
                 if (String(row[4]).replace(/\([\d]{11}\)$/, '').trim() === baseRake) row[4] = newRake;
             });
-            await saveToCloud();
+            await window.saveToCloud();
             populateRakeList();
             alert("FNR Linked.");
         };
