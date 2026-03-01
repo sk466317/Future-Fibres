@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -153,9 +153,37 @@
                 <p class="text-xs text-white/50 font-bold uppercase tracking-widest">Find BL / Container</p>
             </div>
         </button>
+
+        <!-- NAYA TAB: URGENT SHIPMENTS -->
+        <button onclick="showView('viewUrgentShipments')" class="menu-card w-full bg-rose-600 p-6 rounded-[2.5rem] shadow-xl flex items-center gap-4 text-left text-white mt-4 border-none ring-4 ring-rose-100">
+            <div class="bg-white/20 p-4 rounded-3xl">
+                <i data-lucide="alert-triangle" class="w-8 h-8 text-rose-100"></i>
+            </div>
+            <div class="flex-1">
+                <h3 class="font-black uppercase text-lg">Urgent Shipments</h3>
+                <p class="text-xs text-white/70 font-bold uppercase tracking-widest">Saved Shippers List</p>
+            </div>
+        </button>
     </main>
 
     <!-- VIEWS -->
+
+    <!-- NAYA VIEW: URGENT SHIPMENTS -->
+    <div id="viewUrgentShipments" class="full-view bg-slate-50">
+        <header class="bg-rose-600 p-4 flex justify-between items-center shrink-0 shadow-lg text-white">
+            <div class="flex items-center gap-2">
+                <div class="bg-white/20 p-2 rounded-lg"><i data-lucide="alert-triangle" class="w-4 h-4"></i></div>
+                <h2 class="font-black uppercase text-sm tracking-wider">Urgent Shipments</h2>
+            </div>
+            <button onclick="closeViews()" class="text-white/70 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </header>
+        <div class="p-6 space-y-4 flex-1 overflow-y-auto custom-scrollbar">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center">Select Shipper for Status</p>
+            <div id="urgentShippersList" class="space-y-3">
+                <!-- Ye JavaScript se auto populate hoga -->
+            </div>
+        </div>
+    </div>
 
     <!-- VIEW: UPDATE TRAIN -->
     <div id="viewUpdateTrain" class="full-view bg-slate-50">
@@ -367,6 +395,47 @@
             if (id === 'viewSearch') {
                 resetSearchForm();
             }
+            if (id === 'viewUrgentShipments') {
+                populateUrgentShipments();
+            }
+        };
+
+        // --- URGENT SHIPMENTS LOGIC ---
+        function populateUrgentShipments() {
+            const listDiv = document.getElementById('urgentShippersList');
+            if (!rawSheets.shipper || rawSheets.shipper.length === 0) {
+                listDiv.innerHTML = "<p class='text-center py-6 text-slate-400 font-black uppercase'>No Shippers Saved</p>";
+                return;
+            }
+            
+            // Extract unique shipper names (index 3 is the shipper name)
+            const uniqueShippers = [...new Set(rawSheets.shipper.map(s => s[3]))]
+                .filter(name => name && name.toUpperCase() !== 'SHIPPER_NAME' && name.toUpperCase() !== 'NAME')
+                .sort();
+            
+            if (uniqueShippers.length === 0) {
+                listDiv.innerHTML = "<p class='text-center py-6 text-slate-400 font-black uppercase'>No Shippers Saved</p>";
+                return;
+            }
+
+            listDiv.innerHTML = uniqueShippers.map(shipper => `
+                <button onclick="window.openUrgentShipper('${shipper.replace(/'/g, "\\'")}')" class="w-full p-5 bg-white border border-slate-200 rounded-3xl shadow-sm active:bg-rose-50 flex justify-between items-center transition-all group">
+                    <span class="text-sm font-black uppercase text-slate-700 group-active:text-rose-700 text-left pr-4">${shipper}</span>
+                    <div class="bg-rose-100 p-2 rounded-xl group-active:bg-rose-200">
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-rose-600"></i>
+                    </div>
+                </button>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        window.openUrgentShipper = (shipperName) => {
+            // Open global search and trigger search for this shipper exactly
+            window.showView('viewSearch');
+            const searchInput = document.getElementById('smtpBlSearch');
+            searchInput.value = shipperName;
+            // Trigger input event manually so results populate
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
         };
 
         // --- AUTH & DATA LOADING ---
@@ -538,26 +607,52 @@
         };
 
         window.getFilteredSmtp = (shipper, vessel, date, searchVal) => {
+            const savedShippers = new Map();
+            const savedShipperNames = new Set();
+            if (rawSheets.shipper && rawSheets.shipper.length > 1) {
+                rawSheets.shipper.slice(1).forEach(sRow => {
+                    const cont = String(sRow[0] || '').trim().toUpperCase();
+                    const bl = String(sRow[2] || '').trim().toUpperCase();
+                    const name = String(sRow[3] || '').trim().toUpperCase();
+                    if (name) {
+                        savedShipperNames.add(name);
+                        if (cont) savedShippers.set(cont, name);
+                        if (bl) savedShippers.set('BL_' + bl, name);
+                    }
+                });
+            }
+
+            const getShipperName = (cont, bl, fallback) => {
+                if (savedShippers.has(cont)) return savedShippers.get(cont);
+                if (savedShippers.has('BL_' + bl)) return savedShippers.get('BL_' + bl);
+                return fallback;
+            };
+
             return rawSheets.smtp.slice(1).filter(r => {
-                const rShipper = String(r[24] || '').trim().toUpperCase();
+                const bl = String(r[9] || '').trim().toUpperCase();
+                const cont = String(r[2] || '').trim().toUpperCase();
+                const smtpConsignee = String(r[24] || '').trim().toUpperCase();
+                const finalShipper = getShipperName(cont, bl, smtpConsignee);
+                
                 const rVessel = String(r[5] || '').trim() || 'UNKNOWN';
                 const rDate = formatToDDMMYYYY(r[18] || r[17] || '') || 'N/A';
                 
-                if (rShipper !== shipper.toUpperCase() || rVessel !== vessel || rDate !== date) {
+                if (finalShipper !== shipper.toUpperCase() || rVessel !== vessel || rDate !== date) {
                     return false;
                 }
                 
                 if (searchVal) {
-                    const bl = String(r[9] || '').toUpperCase();
-                    const cont = String(r[2] || '').toUpperCase();
-                    const cons = String(r[24] || '').toUpperCase();
-                    return bl.includes(searchVal) || cont.includes(searchVal) || cons.includes(searchVal);
+                    const isSaved = savedShipperNames.has(finalShipper);
+                    const matchesSearch = bl.includes(searchVal) || cont.includes(searchVal) || finalShipper.includes(searchVal);
+                    if (!matchesSearch) return false;
+                    
+                    if (!isSaved && !bl.includes(searchVal) && !cont.includes(searchVal)) return false;
                 }
                 return true;
             });
         };
 
-        // --- SEARCH ENGINE ---
+        // --- SEARCH ENGINE (SORT BY LATEST VESSEL & SAVED SHIPPERS ONLY) ---
         document.getElementById('smtpBlSearch').oninput = (e) => {
             const searchVal = e.target.value.trim().toUpperCase();
             const resultBox = document.getElementById('searchResultBox');
@@ -569,25 +664,71 @@
                 return; 
             }
 
+            const savedShippers = new Map();
+            const savedShipperNames = new Set();
+            
+            if (rawSheets.shipper && rawSheets.shipper.length > 1) {
+                rawSheets.shipper.slice(1).forEach(sRow => {
+                    const cont = String(sRow[0] || '').trim().toUpperCase();
+                    const bl = String(sRow[2] || '').trim().toUpperCase();
+                    const name = String(sRow[3] || '').trim().toUpperCase();
+                    if (name) {
+                        savedShipperNames.add(name);
+                        if (cont) savedShippers.set(cont, name);
+                        if (bl) savedShippers.set('BL_' + bl, name);
+                    }
+                });
+            }
+
+            const getShipperName = (cont, bl, fallback) => {
+                if (savedShippers.has(cont)) return savedShippers.get(cont);
+                if (savedShippers.has('BL_' + bl)) return savedShippers.get('BL_' + bl);
+                return fallback;
+            };
+
             const matches = rawSheets.smtp.slice(1).filter(row => {
-                const bl = String(row[9] || '').toUpperCase();
-                const cont = String(row[2] || '').toUpperCase();
-                const consignee = String(row[24] || '').toUpperCase();
-                return bl.includes(searchVal) || cont.includes(searchVal) || consignee.includes(searchVal);
+                const bl = String(row[9] || '').trim().toUpperCase();
+                const cont = String(row[2] || '').trim().toUpperCase();
+                const smtpConsignee = String(row[24] || '').trim().toUpperCase();
+                const finalShipper = getShipperName(cont, bl, smtpConsignee);
+                const isSaved = savedShipperNames.has(finalShipper);
+
+                const matchesSearch = bl.includes(searchVal) || cont.includes(searchVal) || finalShipper.includes(searchVal);
+                if (!matchesSearch) return false;
+                
+                // Hide extra unsaved shippers when searching by name
+                if (!isSaved && !bl.includes(searchVal) && !cont.includes(searchVal)) {
+                    return false;
+                }
+                
+                return true;
             });
 
             const stats = new Map();
             matches.forEach(row => {
-                const consignee = String(row[24] || '').trim();
+                const bl = String(row[9] || '').trim().toUpperCase();
+                const cont = String(row[2] || '').trim().toUpperCase();
+                const smtpConsignee = String(row[24] || '').trim().toUpperCase();
+                const finalShipper = getShipperName(cont, bl, smtpConsignee);
+
                 const vessel = String(row[5] || '').trim();
                 const handover = formatToDDMMYYYY(row[18] || row[17] || '');
-                const uniqueKey = `${consignee}||${vessel}||${handover}`;
+                const uniqueKey = `${finalShipper}||${vessel}||${handover}`;
 
                 if (!stats.has(uniqueKey)) {
+                    let ts = 0;
+                    if (handover) {
+                        const p = handover.split('-');
+                        if (p.length === 3) {
+                            // Using YYYY, MM-1, DD to get accurate sorting timestamp
+                            ts = new Date(p[2], p[1]-1, p[0]).getTime();
+                        }
+                    }
                     stats.set(uniqueKey, { 
-                        name: consignee, 
+                        name: finalShipper, 
                         vessel: vessel || 'UNKNOWN', 
                         date: handover || 'N/A', 
+                        timestamp: ts,
                         total: 0, 
                         pending: 0 
                     });
@@ -605,7 +746,11 @@
 
             if (stats.size > 0) {
                 resultBox.classList.remove('hidden');
-                resDiv.innerHTML = Array.from(stats.values()).slice(0, 10).map(data => `
+                
+                // Sort array by newest date first
+                const sortedData = Array.from(stats.values()).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10);
+                
+                resDiv.innerHTML = sortedData.map(data => `
                     <div onclick="window.showSearchReport('${data.name.replace(/'/g, "\\'")}', '${data.vessel.replace(/'/g, "\\'")}', '${data.date.replace(/'/g, "\\'")}', '${searchVal.replace(/'/g, "\\'")}')" class="p-4 bg-slate-50 border rounded-2xl active:bg-blue-600 group transition-all mb-2 cursor-pointer">
                         <p class="text-[8px] font-black text-rose-600 uppercase mb-1 group-active:text-white">Record Found:</p>
                         <p class="font-black text-slate-800 uppercase text-xs group-active:text-white mb-2 leading-tight">${data.name}</p>
@@ -896,6 +1041,19 @@
                     }
                     if (!rakeNo) return alert("Rake No not found (H7).");
 
+                    let ah11 = ""; 
+                    for (let r = 0; r < Math.min(20, json.length); r++) { 
+                        if (json[r] && json[r][34]) { 
+                            ah11 = json[r][34]; 
+                            break; 
+                        } 
+                    }
+                    
+                    const fullDt = formatToDDMMYYYY_HHMM(ah11);
+                    if (fullDt && fullDt.includes(' ')) { 
+                        dateStr = fullDt.split(' ')[0]; 
+                        timeStr = fullDt.split(' ')[1]; 
+                    }
                     json.slice(10).forEach(r => { 
                         if (String(r[2]).trim()) {
                             conts.push({ 
@@ -1296,7 +1454,6 @@
               .catch(e => alert("Error: " + e.message));
         };
 
-        // The hidden file input logic is properly bound here.
         const csvInput = document.getElementById('hiddenHtplCsvInput');
         csvInput.onchange = (e) => {
             const file = e.target.files[0];
