@@ -67,13 +67,20 @@
         </div>
     </div>
 
-    <!-- Processing Overlay -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999999] hidden flex flex-col items-center justify-center text-white text-center p-6">
-        <div class="relative w-20 h-20 mb-4">
-            <div class="absolute inset-0 border-4 border-white/20 rounded-full"></div>
-            <div class="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+    <!-- Processing Overlay (UPDATED WITH PERCENTAGE & WARNING) -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[999999] hidden flex flex-col items-center justify-center text-white text-center p-6">
+        <div class="bg-slate-800 p-8 rounded-[2.5rem] shadow-2xl flex flex-col items-center border border-slate-700 w-full max-w-xs">
+            <div class="relative w-20 h-20 mb-6">
+                <div class="absolute inset-0 border-4 border-white/10 rounded-full"></div>
+                <div class="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <h3 class="text-sm font-black uppercase tracking-widest text-slate-200" id="loadingLabel">Connecting to Cloud...</h3>
+            <p id="savingProgressText" class="text-3xl font-black text-blue-400 mt-2 hidden">0%</p>
+            <p id="savingWarning" class="text-[9px] text-rose-500 font-bold uppercase tracking-widest mt-6 hidden text-center leading-relaxed">
+                <i data-lucide="alert-triangle" class="w-4 h-4 mx-auto mb-1"></i>
+                Please do not close or refresh this page
+            </p>
         </div>
-        <h3 class="text-sm font-black uppercase tracking-widest" id="loadingLabel">Connecting to Cloud...</h3>
     </div>
 
     <!-- App Header -->
@@ -465,7 +472,7 @@
             if (!auth.currentUser) return;
             
             document.getElementById('loadingOverlay').classList.remove('hidden');
-            document.getElementById('loadingLabel').innerText = "SYNCHRONIZING CLOUD...";
+            document.getElementById('loadingLabel').innerText = "CONNECTING ...";
             
             try {
                 const metaRef = doc(db, 'artifacts', appId, 'public', 'data', 'report_meta', 'latest');
@@ -484,8 +491,8 @@
                         if (fullStr) {
                             rawSheets = JSON.parse(fullStr);
                         }
-                        document.getElementById('cloudLabel').innerText = "ONLINE";
-                        document.getElementById('cloudIndicator').className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+                        document.getElementById('cloudLabel').innerText = "CONNECTED & ONLINE";
+                        document.getElementById('cloudIndicator').className = "w-3.5 h-3.5 rounded-full bg-emerald-500";
                     }
                 }
             } catch (e) { 
@@ -511,8 +518,18 @@
             if (window.isSavingInProgress) return false;
             
             window.isSavingInProgress = true;
-            document.getElementById('loadingOverlay').classList.remove('hidden');
-            document.getElementById('loadingLabel').innerText = "SYNCING CLOUD...";
+            
+            // UPDATED LOGIC: Show Loading overlay with %
+            const overlay = document.getElementById('loadingOverlay');
+            const label = document.getElementById('loadingLabel');
+            const progressText = document.getElementById('savingProgressText');
+            const warningText = document.getElementById('savingWarning');
+            
+            overlay.classList.remove('hidden');
+            label.innerText = "DATA SAVING...";
+            progressText.innerText = "0%";
+            progressText.classList.remove('hidden');
+            warningText.classList.remove('hidden');
             
             try {
                 const str = JSON.stringify(rawSheets);
@@ -523,6 +540,8 @@
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'report_chunks', `chunk_${i}`), { 
                         data: str.substring(i * chunkSize, (i + 1) * chunkSize) 
                     });
+                    const progress = Math.round(((i + 1) / chunkCount) * 100);
+                    progressText.innerText = `${progress}%`;
                 }
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'report_meta', 'latest'), { 
                     chunkCount, 
@@ -533,7 +552,9 @@
                 alert("Save Failed: Check your internet connection."); 
                 return false; 
             } finally { 
-                document.getElementById('loadingOverlay').classList.add('hidden'); 
+                overlay.classList.add('hidden'); 
+                progressText.classList.add('hidden');
+                warningText.classList.add('hidden');
                 window.isSavingInProgress = false;
             }
         };
