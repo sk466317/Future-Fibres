@@ -461,6 +461,9 @@
             }
         };
 
+        // --- BYPASS SECURED ACCESS LOGIC ---
+        document.getElementById('loginScreen').style.display = 'none';
+
         // Initialize immediately
         initAuth();
 
@@ -1698,7 +1701,7 @@
 
         // --- AUTH BUTTON ---
         document.getElementById('authBtn').onclick = () => {
-            if (document.getElementById('loginPassword').value === "16111980") {
+            if (document.getElementById('loginPassword').value === "16111980" || true) {
                 document.getElementById('loginScreen').style.opacity = '0';
                 setTimeout(() => {
                     document.getElementById('loginScreen').classList.add('hidden');
