@@ -3,1757 +3,1224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logistics Pro Mobile | HTPL</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    
+    <title>Future Fibres - Email ID Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Firebase Libraries -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        window.fb = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, getDoc, onSnapshot };
+        window.fb = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, doc, setDoc, getDoc, onSnapshot };
     </script>
-
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: #f8fafc; 
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f0f2f5;
+            color: #1e293b;
+            min-height: 100vh;
         }
-        .menu-card { 
-            transition: all 0.2s ease; 
-            border: 1px solid #e2e8f0; 
+
+        /* ========== PASSWORD SCREEN ========== */
+        .pw-overlay {
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 50000;
         }
-        .menu-card:active { 
-            transform: scale(0.96); 
-            background-color: #f1f5f9; 
+        .pw-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 40px 36px;
+            max-width: 360px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
         }
-        .full-view { 
-            position: fixed; 
-            inset: 0; 
-            background: white; 
-            z-index: 50; 
-            display: none; 
-            flex-direction: column; 
+        .pw-card .icon-lock { font-size: 36px; margin-bottom: 12px; }
+        .pw-card h2 {
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #0f172a;
+            margin-bottom: 4px;
         }
-        .full-view.active { 
-            display: flex; 
+        .pw-card p {
+            font-size: 10px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .custom-scrollbar::-webkit-scrollbar { 
-            width: 4px; 
+        .pw-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 3px;
+            outline: none;
+            transition: border-color 0.2s;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb { 
-            background: #cbd5e1; 
-            border-radius: 10px; 
+        .pw-input:focus { border-color: #0ea5e9; }
+        .pw-input.error { border-color: #ef4444; animation: shake 0.4s; }
+        @keyframes shake {
+            0%,100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+        .pw-btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 14px;
+            border: none;
+            border-radius: 10px;
+            background: #0f172a;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .pw-btn:hover { background: #1e3a5f; }
+        .pw-error-msg {
+            margin-top: 10px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #ef4444;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .pw-error-msg.show { opacity: 1; }
+
+        /* ========== HEADER ========== */
+        .header-bar {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+            padding: 18px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+        }
+        .header-bar h1 {
+            color: #fff;
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-bar h1 .icon {
+            background: #0ea5e9;
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+        }
+        .status-pill {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 5px 14px;
+            border-radius: 20px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .status-pill .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .status-loading { background: #fef3c7; color: #92400e; }
+        .status-loading .dot { background: #f59e0b; }
+        .status-online { background: #d1fae5; color: #065f46; }
+        .status-online .dot { background: #10b981; }
+        .status-error { background: #fee2e2; color: #991b1b; }
+        .status-error .dot { background: #ef4444; }
+
+        .main-container {
+            max-width: 820px;
+            margin: 32px auto;
+            padding: 0 16px;
+        }
+        .card {
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+        }
+        .card-overflow-visible {
+            overflow: visible !important;
+        }
+        .card-header {
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-header h2 {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #334155;
+        }
+        .card-body { padding: 20px; overflow: visible; }
+
+        /* ========== BL SEARCH BOX ========== */
+        .bl-search-wrap { position: relative; }
+        .bl-search-input {
+            width: 100%;
+            padding: 12px 44px 12px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            border: 2px solid #cbd5e1;
+            border-radius: 10px;
+            background: #f8fafc;
+            color: #0f172a;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            letter-spacing: 0.5px;
+        }
+        .bl-search-input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,0.12); }
+        .bl-search-input::placeholder { color: #94a3b8; font-weight: 600; text-transform: none; letter-spacing: 0; }
+        .bl-search-icon {
+            position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+            font-size: 16px; color: #94a3b8; pointer-events: none;
+        }
+        .bl-suggestions {
+            position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+            background: #fff; border: 1.5px solid #e2e8f0; border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15); z-index: 9999;
+            max-height: 240px; overflow-y: auto; display: none;
+        }
+        .bl-suggestions.open { display: block; }
+        .bl-suggestion-item {
+            padding: 10px 16px; font-size: 12px; font-weight: 700;
+            color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;
+            cursor: pointer; border-bottom: 1px solid #f1f5f9;
+            transition: background 0.12s;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .bl-suggestion-item:last-child { border-bottom: none; }
+        .bl-suggestion-item:hover, .bl-suggestion-item.active { background: #f0f9ff; color: #0ea5e9; }
+        .bl-suggestion-item .bl-icon { font-size: 13px; color: #0ea5e9; }
+        .bl-suggestion-match { color: #0ea5e9; }
+        .bl-selected-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #0f172a; color: #fff; border-radius: 7px;
+            padding: 5px 12px; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin-top: 10px;
+        }
+        .bl-selected-pill .clear-bl {
+            cursor: pointer; opacity: 0.7; font-size: 13px;
+            transition: opacity 0.15s;
+        }
+        .bl-selected-pill .clear-bl:hover { opacity: 1; }
+
+        /* ========== SAVE ALL BUTTON ========== */
+        .save-all-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px; background: #f0fdf4;
+            border-top: 1.5px solid #bbf7d0;
+        }
+        .save-all-note {
+            font-size: 10px; font-weight: 700; color: #059669;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .save-all-btn {
+            padding: 8px 20px; font-size: 10px; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.8px;
+            border: none; border-radius: 8px; cursor: pointer;
+            background: linear-gradient(135deg, #0f766e 0%, #0ea5e9 100%);
+            color: #fff; display: flex; align-items: center; gap: 7px;
+            transition: all 0.2s; box-shadow: 0 2px 8px rgba(14,118,110,0.3);
+        }
+        .save-all-btn:hover { transform: scale(1.03); box-shadow: 0 4px 14px rgba(14,118,110,0.4); }
+        .save-all-btn:active { transform: scale(0.97); }
+        .save-all-btn:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: #94a3b8;
+        }
+        .empty-state .icon-big { font-size: 40px; margin-bottom: 12px; }
+        .empty-state p {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cont-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .cont-table thead th {
+            background: #0f172a;
+            color: #fff;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-size: 9px;
+            white-space: nowrap;
+        }
+        .cont-table tbody tr {
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.15s;
+        }
+        .cont-table tbody tr:hover { background: #f8fafc; }
+        .cont-table td {
+            padding: 10px 12px;
+            font-weight: 600;
+            vertical-align: middle;
+        }
+        .cont-table td.cont-no {
+            font-family: 'Courier New', monospace;
+            font-weight: 800;
+            color: #0f172a;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+        .cont-table td.size-cell {
+            text-align: center;
+            color: #64748b;
+        }
+        .existing-email-tag {
+            font-size: 9px;
+            font-weight: 600;
+            color: #059669;
+            background: #ecfdf5;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+            display: inline-block;
+            word-break: break-all;
+            max-width: 100%;
+        }
+
+        .email-input {
+            width: 100%;
+            padding: 7px 10px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 7px;
+            font-size: 11px;
+            font-weight: 600;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            min-width: 160px;
+        }
+        .email-input:focus {
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 3px rgba(14,165,233,0.12);
+        }
+
+        .save-btn {
+            padding: 6px 14px;
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .save-btn-primary { background: #0f766e; color: #fff; }
+        .save-btn-primary:hover { background: #0d9488; transform: scale(1.02); }
+        .save-btn-primary:active { transform: scale(0.97); }
+        .save-btn-primary:disabled { background: #94a3b8; cursor: not-allowed; transform: none; }
+        .save-btn-saved { background: #d1fae5; color: #065f46; }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            padding: 12px 28px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            z-index: 10000;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast-success { background: #059669; color: #fff; }
+        .toast-error { background: #dc2626; color: #fff; }
+
+        /* ========== SAVING PROGRESS POPUP MODAL ========== */
+        .progress-overlay {
+            position: fixed; inset: 0;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 60000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .progress-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .progress-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 30px 28px;
+            max-width: 380px;
+            width: 88%;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            transform: scale(0.92);
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .progress-overlay.show .progress-card {
+            transform: scale(1);
+        }
+        .progress-icon {
+            font-size: 36px;
+            margin-bottom: 10px;
+            display: inline-block;
+            animation: pulse-icon 1.5s infinite;
+        }
+        @keyframes pulse-icon {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+        }
+        .progress-title {
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+        .progress-subtitle {
+            font-size: 11px;
+            font-weight: 700;
+            color: #0ea5e9;
+            margin-bottom: 18px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.5px;
+        }
+        .progress-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: #e2e8f0;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0ea5e9 0%, #10b981 100%);
+            border-radius: 999px;
+            transition: width 0.08s ease-out;
+        }
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .progress-percent {
+            font-size: 13px;
+            font-weight: 800;
+            color: #0f766e;
+            font-family: monospace;
+        }
+
+        .footer-note {
+            text-align: center;
+            font-size: 9px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 16px 0 32px;
         }
     </style>
 </head>
-<body class="h-screen overflow-hidden flex flex-col text-slate-900">
+<body>
 
-    <!-- Login Screen -->
-    <div id="loginScreen" class="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center p-6">
-        <div class="bg-white p-8 rounded-[2rem] shadow-2xl w-full max-w-sm text-center">
-            <div class="bg-blue-600 w-20 h-20 rounded-3xl flex items-center justify-center text-white mx-auto mb-6 shadow-lg">
-                <i data-lucide="lock" class="w-10 h-10"></i>
-            </div>
-            <h2 class="text-2xl font-black text-slate-800 uppercase tracking-tight mb-1">Secured Access</h2>
-            <p class="text-slate-500 text-xs mb-8 font-bold uppercase tracking-widest">HTPL Logistics Dashboard</p>
-            <input type="password" id="loginPassword" placeholder="ENTER PASSWORD" class="w-full px-4 py-4 bg-slate-100 border-none rounded-2xl font-black text-center tracking-[0.5em] focus:ring-2 focus:ring-blue-500 outline-none mb-4">
-            <button id="authBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all uppercase tracking-widest active:scale-95">Login</button>
-            <div id="loginError" class="text-rose-600 text-[10px] font-bold mt-4 hidden uppercase">Incorrect Password!</div>
+    <!-- ========== PASSWORD SCREEN ========== -->
+    <div id="pwOverlay" class="pw-overlay">
+        <div class="pw-card">
+            <div class="icon-lock">🔒</div>
+            <h2>Protected Access</h2>
+            <p>Enter password to continue</p>
+            <input type="password" id="pwInput" class="pw-input" placeholder="••••••" autofocus>
+            <button id="pwBtn" class="pw-btn" onclick="checkPassword()">Unlock</button>
+            <div id="pwError" class="pw-error-msg">Incorrect password. Try again.</div>
         </div>
     </div>
 
-    <!-- Processing Overlay (UPDATED WITH PERCENTAGE & WARNING) -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[999999] hidden flex flex-col items-center justify-center text-white text-center p-6">
-        <div class="bg-slate-800 p-8 rounded-[2.5rem] shadow-2xl flex flex-col items-center border border-slate-700 w-full max-w-xs">
-            <div class="relative w-20 h-20 mb-6">
-                <div class="absolute inset-0 border-4 border-white/10 rounded-full"></div>
-                <div class="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
-            </div>
-            <h3 class="text-sm font-black uppercase tracking-widest text-slate-200" id="loadingLabel">Connecting to Cloud...</h3>
-            <p id="savingProgressText" class="text-3xl font-black text-blue-400 mt-2 hidden">0%</p>
-            <p id="savingWarning" class="text-[9px] text-rose-500 font-bold uppercase tracking-widest mt-6 hidden text-center leading-relaxed">
-                <i data-lucide="alert-triangle" class="w-4 h-4 mx-auto mb-1"></i>
-                Please do not close or refresh this page
-            </p>
-        </div>
-    </div>
-
-    <!-- App Header -->
-    <header class="bg-white border-b p-4 flex justify-between items-center shrink-0 shadow-sm">
-        <div class="flex items-center gap-3">
-            <div class="bg-blue-600 p-2 rounded-xl text-white shadow-md">
-                <i data-lucide="ship" class="w-5 h-5"></i>
-            </div>
-            <div>
-                <h1 class="font-black text-slate-800 uppercase leading-none text-sm">HTPL Pro</h1>
-                <p class="text-[8px] font-bold text-blue-600 uppercase tracking-widest">Mobile Version</p>
+    <!-- ========== MAIN APP (hidden until unlocked) ========== -->
+    <div id="mainApp" style="display:none;">
+        <div class="header-bar">
+            <h1>
+                <span class="icon">📧</span>
+                Future Fibres — Email ID Manager
+            </h1>
+            <div id="statusPill" class="status-pill status-loading">
+                <span class="dot"></span>
+                <span id="statusText">Connecting...</span>
             </div>
         </div>
-        <div class="flex items-center gap-2">
-            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 border text-[9px] font-black text-slate-500">
-                <span id="cloudIndicator" class="w-2 h-2 rounded-full bg-slate-300"></span>
-                <span id="cloudLabel">CONNECTING...</span>
-            </div>
-            <button onclick="window.loadData(true)" class="p-2 bg-slate-50 rounded-lg border hover:bg-white transition-all">
-                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-            </button>
-        </div>
-    </header>
 
-    <!-- Main Mobile Menu -->
-    <main id="mainMenu" class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-        <button onclick="showView('viewUpdateTrain')" class="menu-card w-full bg-white p-5 rounded-3xl shadow-sm flex items-center gap-4 text-left">
-            <div class="bg-amber-100 p-4 rounded-2xl text-amber-600">
-                <i data-lucide="train" class="w-7 h-7"></i>
-            </div>
-            <div class="flex-1">
-                <h3 class="font-black text-slate-800 uppercase text-sm">Update Train</h3>
-                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Website Source & Rake Updates</p>
-            </div>
-            <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
-        </button>
-
-        <button onclick="showView('viewUpdateSmtp')" class="menu-card w-full bg-white p-5 rounded-3xl shadow-sm flex items-center gap-4 text-left">
-            <div class="bg-blue-100 p-4 rounded-2xl text-blue-600">
-                <i data-lucide="file-up" class="w-7 h-7"></i>
-            </div>
-            <div class="flex-1">
-                <h3 class="font-black text-slate-800 uppercase text-sm">Update SMTP</h3>
-                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Excel Upload & Sync</p>
-            </div>
-            <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
-        </button>
-
-        <button onclick="showView('viewFnrTrack')" class="menu-card w-full bg-white p-5 rounded-3xl shadow-sm flex items-center gap-4 text-left">
-            <div class="bg-indigo-100 p-4 rounded-2xl text-indigo-600">
-                <i data-lucide="map-pin" class="w-7 h-7"></i>
-            </div>
-            <div class="flex-1">
-                <h3 class="font-black text-slate-800 uppercase text-sm">FNR Track</h3>
-                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">FOIS Search & Linking</p>
-            </div>
-            <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
-        </button>
-
-        <button onclick="showView('viewAddShipper')" class="menu-card w-full bg-white p-5 rounded-3xl shadow-sm flex items-center gap-4 text-left">
-            <div class="bg-teal-100 p-4 rounded-2xl text-teal-600">
-                <i data-lucide="user-plus" class="w-7 h-7"></i>
-            </div>
-            <div class="flex-1">
-                <h3 class="font-black text-slate-800 uppercase text-sm">Add Shipper</h3>
-                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Manual Shipper Mapping</p>
-            </div>
-            <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
-        </button>
-
-        <button onclick="showView('viewSearch')" class="menu-card w-full bg-slate-800 p-6 rounded-[2.5rem] shadow-xl flex items-center gap-4 text-left text-white mt-4 border-none ring-4 ring-slate-100">
-            <div class="bg-white/10 p-4 rounded-3xl">
-                <i data-lucide="search" class="w-8 h-8 text-blue-400"></i>
-            </div>
-            <div class="flex-1">
-                <h3 class="font-black uppercase text-lg">Global Search</h3>
-                <p class="text-xs text-white/50 font-bold uppercase tracking-widest">Find BL / Container</p>
-            </div>
-        </button>
-
-        <!-- NAYA TAB: URGENT SHIPMENTS -->
-        <button onclick="showView('viewUrgentShipments')" class="menu-card w-full bg-rose-600 p-6 rounded-[2.5rem] shadow-xl flex items-center gap-4 text-left text-white mt-4 border-none ring-4 ring-rose-100">
-            <div class="bg-white/20 p-4 rounded-3xl">
-                <i data-lucide="alert-triangle" class="w-8 h-8 text-rose-100"></i>
-            </div>
-            <div class="flex-1">
-                <h3 class="font-black uppercase text-lg">Urgent Shipments</h3>
-                <p class="text-xs text-white/70 font-bold uppercase tracking-widest">Saved Shippers List</p>
-            </div>
-        </button>
-    </main>
-
-    <!-- VIEWS -->
-
-    <!-- NAYA VIEW: URGENT SHIPMENTS -->
-    <div id="viewUrgentShipments" class="full-view bg-slate-50">
-        <header class="bg-rose-600 p-4 flex justify-between items-center shrink-0 shadow-lg text-white">
-            <div class="flex items-center gap-2">
-                <div class="bg-white/20 p-2 rounded-lg"><i data-lucide="alert-triangle" class="w-4 h-4"></i></div>
-                <h2 class="font-black uppercase text-sm tracking-wider">Urgent Shipments</h2>
-            </div>
-            <button onclick="closeViews()" class="text-white/70 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
-        </header>
-        <div class="p-6 space-y-4 flex-1 overflow-y-auto custom-scrollbar">
-            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center">Select Shipper for Status</p>
-            <div id="urgentShippersList" class="space-y-3">
-                <!-- Ye JavaScript se auto populate hoga -->
-            </div>
-        </div>
-    </div>
-
-    <!-- VIEW: UPDATE TRAIN -->
-    <div id="viewUpdateTrain" class="full-view bg-slate-50">
-        <header class="bg-amber-600 p-4 text-white flex justify-between items-center shadow-lg shrink-0">
-            <h2 class="font-black uppercase text-sm">Update & View Website</h2>
-            <button onclick="closeViews()"><i data-lucide="x" class="w-6 h-6"></i></button>
-        </header>
-        <div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-            <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase block mb-1">Select Rake No</label>
-                    <select id="rakeSelect" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-amber-500"></select>
+        <div class="main-container">
+            <div class="card card-overflow-visible">
+                <div class="card-header" style="border-radius:14px 14px 0 0;">
+                    <h2>🔍 Search B/L Number</h2>
+                    <span id="blCount" style="font-size:10px; font-weight:700; color:#64748b;">0 B/Ls Found</span>
                 </div>
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase block mb-1">Arrival Date & Time</label>
-                    <input type="datetime-local" id="arrivedDateInput" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm outline-none">
-                </div>
-                <button id="updateArrivedBtn" class="w-full bg-amber-600 text-white font-black py-4 rounded-2xl uppercase shadow-lg active:scale-95 transition-all">Update Arrival</button>
-                
-                <div class="pt-4 border-t border-slate-100">
-                    <label class="text-[10px] font-black text-slate-400 uppercase block mb-1">Edit Remarks for Selected Rake</label>
-                    <input type="text" id="customRemarksInput" placeholder="Edit remarks..." class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm outline-none mb-3">
-                    <button id="updateCustomRemarksBtn" class="w-full bg-slate-800 text-white font-black py-4 rounded-2xl uppercase shadow-lg active:scale-95 transition-all">Update Remarks</button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 pb-10">
-                <button id="downloadWebsiteCsvBtn" class="bg-white border border-slate-200 p-4 rounded-2xl font-black text-[10px] uppercase text-slate-700 shadow-sm">Export CSV</button>
-                <button id="saveLocalChangesBtn" class="bg-emerald-600 text-white p-4 rounded-2xl font-black text-[10px] uppercase shadow-md">Save Changes</button>
-                <button id="deleteHtplUid103Btn" class="bg-rose-100 text-rose-700 p-4 rounded-2xl font-black text-[10px] uppercase border border-rose-200">Delete HTPL</button>
-                <button id="uploadCsvToHtplBtn" class="bg-blue-100 text-blue-700 p-4 rounded-2xl font-black text-[10px] uppercase border border-blue-200">Upload HTPL</button>
-                
-                <!-- MOBILE FILE SELECTION FIX: Hidden Input -->
-                <input type="file" id="hiddenHtplCsvInput" accept=".csv" class="hidden">
-            </div>
-        </div>
-        <div class="p-4 bg-white border-t">
-            <button onclick="closeViews()" class="w-full py-4 bg-slate-100 rounded-2xl font-black text-slate-500 uppercase">Exit View</button>
-        </div>
-    </div>
-
-    <!-- VIEW: SEARCH -->
-    <div id="viewSearch" class="full-view bg-slate-900">
-        <header class="p-4 flex justify-between items-center shrink-0">
-            <div class="flex items-center gap-2 text-white">
-                <div class="bg-blue-600 p-2 rounded-lg"><i data-lucide="search" class="w-4 h-4"></i></div>
-                <h2 class="font-black uppercase text-sm tracking-wider">Global Tracking</h2>
-            </div>
-            <button onclick="closeViews()" class="text-white/50 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
-        </header>
-        <div class="p-6 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-            <div class="relative">
-                <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-white/30"></i>
-                <input type="text" id="smtpBlSearch" placeholder="BL OR CONTAINER NO..." class="w-full pl-14 pr-4 py-6 bg-white/10 rounded-[2rem] font-black text-xl border-none outline-none focus:ring-4 focus:ring-blue-500/50 text-white placeholder-white/20 uppercase tracking-tighter">
-            </div>
-            
-            <div id="searchResultBox" class="hidden bg-white rounded-[2.5rem] p-6 shadow-2xl space-y-4">
-                <div id="searchResults" class="space-y-3"></div>
-            </div>
-            
-            <div id="searchDetailCard" class="hidden bg-white rounded-[2.5rem] p-6 shadow-2xl space-y-6"></div>
-        </div>
-    </div>
-
-    <!-- VIEW: ADD SHIPPER -->
-    <div id="viewAddShipper" class="full-view bg-slate-50">
-        <header class="bg-teal-700 p-4 text-white flex justify-between items-center shadow-lg shrink-0">
-            <h2 class="font-black uppercase text-sm">Manual Shipper Link</h2>
-            <button onclick="closeViews()"><i data-lucide="x" class="w-6 h-6"></i></button>
-        </header>
-        <div class="p-6 space-y-4 flex-1 overflow-y-auto custom-scrollbar">
-            <div class="bg-white p-6 rounded-[2rem] shadow-sm border space-y-4">
-                <input type="text" id="manualBlInput" placeholder="B/L NO. (SMTP LOOKUP)" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-black uppercase text-sm outline-none focus:ring-2 focus:ring-teal-500">
-                <div id="blMatchStatus" class="text-[9px] font-black uppercase text-center text-teal-600 -mt-2"></div>
-                <input type="text" id="manualShipperNameInput" placeholder="SHIPPER NAME" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-black uppercase text-sm outline-none focus:ring-2 focus:ring-teal-500">
-            </div>
-
-            <div class="bg-white p-6 rounded-[2rem] border-2 border-dashed border-slate-200 shadow-sm">
-                <p class="text-[10px] font-black text-slate-400 uppercase text-center mb-4">Manual Containers</p>
-                <div class="flex gap-2 mb-4">
-                    <input type="text" id="manualSingleCont" placeholder="CONT NO" class="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-black uppercase text-xs outline-none">
-                    <select id="manualSingleSize" class="w-20 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none">
-                        <option value="20">20"</option>
-                        <option value="40">40"</option>
-                    </select>
-                    <button id="addManualToPreviewBtn" class="bg-teal-600 text-white px-5 rounded-xl font-black hover:bg-teal-700 transition-colors"><i data-lucide="plus" class="w-5 h-5"></i></button>
-                </div>
-                <div id="containerPreviewArea" class="hidden border-t pt-4">
-                    <p class="text-[8px] font-bold text-slate-400 uppercase mb-2">Queue to Link:</p>
-                    <ul id="previewList" class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar"></ul>
-                </div>
-            </div>
-            
-            <button id="saveManualShipperBtn" class="w-full bg-teal-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase mt-4 active:scale-95 transition-all">Save to Shipper Tab</button>
-        </div>
-    </div>
-
-    <!-- VIEW: UPDATE SMTP -->
-    <div id="viewUpdateSmtp" class="full-view bg-slate-50">
-        <header class="bg-blue-700 p-4 text-white flex justify-between items-center shadow-lg shrink-0">
-            <h2 class="font-black uppercase text-sm">Source Data Sync</h2>
-            <button onclick="closeViews()"><i data-lucide="x" class="w-6 h-6"></i></button>
-        </header>
-        <div class="p-6 space-y-4 flex-1">
-            <label class="block group">
-                <div class="flex flex-col items-center justify-center w-full h-40 bg-white border-2 border-dashed border-blue-200 rounded-[2rem] cursor-pointer hover:bg-blue-50 transition-all">
-                    <div class="bg-blue-600 p-4 rounded-2xl text-white mb-3 shadow-lg group-active:scale-90 transition-transform">
-                        <i data-lucide="file-spreadsheet" class="w-8 h-8"></i>
+                <div class="card-body">
+                    <div class="bl-search-wrap" id="blSearchWrap">
+                        <input type="text" id="blSearchInput" class="bl-search-input" placeholder="Type B/L number to search..." autocomplete="off" disabled>
+                        <span class="bl-search-icon">🔍</span>
+                        <div id="blSuggestions" class="bl-suggestions"></div>
                     </div>
-                    <p class="text-xs font-black text-slate-700 uppercase">Upload SMTP Excel</p>
-                </div>
-                <input type="file" id="smtpExcelInput" class="hidden" accept=".xlsx,.xls">
-            </label>
-
-            <label class="block group">
-                <div class="flex items-center gap-4 w-full p-6 bg-cyan-600 rounded-3xl cursor-pointer hover:bg-cyan-700 transition-all text-white shadow-lg">
-                    <i data-lucide="database" class="w-8 h-8 opacity-50"></i>
-                    <p class="text-sm font-black uppercase">Upload HKR/HMR Excel</p>
-                </div>
-                <input type="file" id="hkrHmrExcelInput" class="hidden" accept=".xlsx,.xls,.csv">
-            </label>
-
-            <div class="grid grid-cols-1 gap-3 pt-6">
-                <label class="bg-indigo-600 text-white p-5 rounded-3xl font-black text-xs text-center uppercase shadow-md cursor-pointer">
-                    Update Single Stack Summary
-                    <input type="file" id="websiteExcelInput" class="hidden" accept=".xlsx,.xls">
-                </label>
-                <label class="bg-indigo-900 text-white p-5 rounded-3xl font-black text-xs text-center uppercase shadow-md cursor-pointer">
-                    Update Double Stack Summary
-                    <input type="file" id="doubleStackExcelInput" class="hidden" accept=".xlsx,.xls">
-                </label>
-            </div>
-        </div>
-    </div>
-
-    <!-- VIEW: FNR TRACK -->
-    <div id="viewFnrTrack" class="full-view bg-slate-50">
-        <header class="bg-indigo-700 p-4 text-white flex justify-between items-center shadow-lg shrink-0">
-            <h2 class="font-black uppercase text-sm">FNR Tracking Tools</h2>
-            <button onclick="closeViews()"><i data-lucide="x" class="w-6 h-6"></i></button>
-        </header>
-        <div class="p-6 space-y-4">
-            <div class="bg-white p-5 rounded-[2rem] shadow-sm border space-y-4">
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase block mb-1">Select Rake No</label>
-                    <select id="rakeSelectFnr" class="w-full p-4 bg-slate-50 border rounded-2xl font-black text-sm outline-none focus:ring-2 focus:ring-indigo-500"></select>
-                </div>
-                <div class="grid grid-cols-1 gap-3">
-                    <button id="openFoisWithFnrBtn" class="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl uppercase shadow-lg active:scale-95">FNR Track (Official)</button>
-                    <button id="linkFnrBtn" class="w-full bg-slate-800 text-white font-black py-5 rounded-2xl uppercase shadow-lg active:scale-95">Link FNR Number</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Hidden Manual Date Modal -->
-    <div id="manualDateModal" class="fixed inset-0 bg-black/80 z-[300] hidden items-center justify-center p-6">
-        <div class="bg-white p-6 rounded-3xl w-full max-w-sm border-4 border-blue-600 shadow-2xl">
-            <h3 class="font-black uppercase mb-4 text-center text-slate-800">Departure Date & Time</h3>
-            <p class="text-[10px] text-slate-500 uppercase font-bold mb-4 text-center">Format: dd-mm-yyyy hh:mm</p>
-            <input type="text" id="manualRailDateInput" placeholder="21-12-2025 03:00" class="w-full p-4 bg-slate-100 rounded-2xl font-black text-center border-none mb-6 outline-none focus:ring-2 focus:ring-blue-500">
-            <div class="flex gap-3">
-                <button id="submitManualDateBtn" class="flex-1 bg-blue-600 text-white font-black py-4 rounded-2xl uppercase shadow-lg active:scale-95 transition-all">Update</button>
-                <button id="cancelManualDateBtn" class="flex-1 bg-slate-200 text-slate-600 font-black py-4 rounded-2xl uppercase active:scale-95 transition-all">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <script type="module">
-        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, getDoc, onSnapshot } = window.fb;
-        
-        const firebaseConfig = {
-            apiKey: "AIzaSyBo1ZvNlwQN_s3k7XmyaD_-q0ikydEijFs",
-            authDomain: "logistic-c6a6a.firebaseapp.com",
-            projectId: "logistic-c6a6a",
-            storageBucket: "logistic-c6a6a.firebasestorage.app",
-            messagingSenderId: "270575499830",
-            appId: "1:270575499830:web:cc280133d6cdde224b7697"
-        };
-        const appId = "logistic-c6a6a-dashboard";
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        let rawSheets = { shipper: [], smtp: [], website: [], hkrHmrFiltered: [] };
-        let lastUpdated = null;
-        let matchedContainers = [];
-        let pendingExcelUpdateData = null;
-
-        // --- SCOPE PROTECTION ---
-        window.closeViews = () => {
-            document.querySelectorAll('.full-view').forEach(m => {
-                m.classList.remove('active');
-            });
-        };
-
-        window.showView = (id) => {
-            window.closeViews();
-            const view = document.getElementById(id);
-            if (view) {
-                view.classList.add('active');
-            }
-            if (id === 'viewUpdateTrain' || id === 'viewFnrTrack') {
-                populateRakeList();
-            }
-            if (id === 'viewAddShipper') {
-                resetAddShipperForm();
-            }
-            if (id === 'viewSearch') {
-                resetSearchForm();
-            }
-            if (id === 'viewUrgentShipments') {
-                populateUrgentShipments();
-            }
-        };
-
-        // --- URGENT SHIPMENTS LOGIC ---
-        function populateUrgentShipments() {
-            const listDiv = document.getElementById('urgentShippersList');
-            if (!rawSheets.shipper || rawSheets.shipper.length === 0) {
-                listDiv.innerHTML = "<p class='text-center py-6 text-slate-400 font-black uppercase'>No Shippers Saved</p>";
-                return;
-            }
-            
-            // Extract unique shipper names (index 3 is the shipper name)
-            const uniqueShippers = [...new Set(rawSheets.shipper.map(s => s[3]))]
-                .filter(name => name && name.toUpperCase() !== 'SHIPPER_NAME' && name.toUpperCase() !== 'NAME')
-                .sort();
-            
-            if (uniqueShippers.length === 0) {
-                listDiv.innerHTML = "<p class='text-center py-6 text-slate-400 font-black uppercase'>No Shippers Saved</p>";
-                return;
-            }
-
-            listDiv.innerHTML = uniqueShippers.map(shipper => `
-                <button onclick="window.openUrgentShipper('${shipper.replace(/'/g, "\\'")}')" class="w-full p-5 bg-white border border-slate-200 rounded-3xl shadow-sm active:bg-rose-50 flex justify-between items-center transition-all group">
-                    <span class="text-sm font-black uppercase text-slate-700 group-active:text-rose-700 text-left pr-4">${shipper}</span>
-                    <div class="bg-rose-100 p-2 rounded-xl group-active:bg-rose-200">
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-rose-600"></i>
+                    <div id="blSelectedPill" style="display:none;" class="bl-selected-pill">
+                        <span>📋</span>
+                        <span id="blSelectedText"></span>
+                        <span class="clear-bl" onclick="clearBLSelection()" title="Clear">✕</span>
                     </div>
-                </button>
-            `).join('');
-            lucide.createIcons();
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 id="tableTitle">Containers</h2>
+                    <span id="contCount" style="font-size:10px; font-weight:700; color:#64748b;">0 Containers</span>
+                </div>
+                <div id="tableBody">
+                    <div class="empty-state">
+                        <div class="icon-big">📋</div>
+                        <p>Search a B/L number above to view containers</p>
+                    </div>
+                </div>
+                <div id="saveAllBar" class="save-all-bar" style="display:none;">
+                    <span class="save-all-note">💾 Enter emails above &amp; click to save all at once</span>
+                    <button id="saveAllBtn" class="save-all-btn" onclick="saveAllContainers()">
+                        <span>💾</span> Save All Emails
+                    </button>
+                </div>
+            </div>
+
+            <p class="footer-note">This page is linked to Import Dashboard • Data syncs to cloud</p>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <!-- ========== SAVING PROGRESS MODAL ========== -->
+    <div id="progressOverlay" class="progress-overlay">
+        <div class="progress-card">
+            <div id="progressIcon" class="progress-icon">⚡</div>
+            <h3 class="progress-title">Saving Email ID</h3>
+            <p id="progressSubtitle" class="progress-subtitle">Container: -</p>
+            <div class="progress-bar-bg">
+                <div id="progressFill" class="progress-bar-fill"></div>
+            </div>
+            <div class="progress-info">
+                <span id="progressStatus">Connecting to cloud...</span>
+                <span id="progressPercent" class="progress-percent">0%</span>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ===================================
+// PASSWORD PROTECTION
+// ===================================
+const CORRECT_PW = "Garg6666";
+
+function checkPassword() {
+    const input = document.getElementById('pwInput');
+    const errMsg = document.getElementById('pwError');
+    if (input.value === CORRECT_PW) {
+        document.getElementById('pwOverlay').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        startApp();
+    } else {
+        input.classList.add('error');
+        errMsg.classList.add('show');
+        setTimeout(() => {
+            input.classList.remove('error');
+        }, 500);
+        input.value = '';
+        input.focus();
+    }
+}
+
+document.getElementById('pwInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') checkPassword();
+});
+</script>
+
+<script type="module">
+// ===================================
+// FIREBASE SETUP
+// ===================================
+const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, doc, setDoc, getDoc, onSnapshot } = window.fb;
+
+const MY_CUSTOM_CONFIG = {
+    apiKey: "AIzaSyBo1ZvNlwQN_s3k7XmyaD_-q0ikydEijFs",
+    authDomain: "logistic-c6a6a.firebaseapp.com",
+    projectId: "logistic-c6a6a",
+    storageBucket: "logistic-c6a6a.firebasestorage.app",
+    messagingSenderId: "270575499830",
+    appId: "1:270575499830:web:cc280133d6cdde224b7697",
+    measurementId: "G-YQ30N12NF7"
+};
+
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : MY_CUSTOM_CONFIG;
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : "logistic-c6a6a-dashboard";
+
+const SHIPPER_NAME = "FUTURE FIBRES AND FILAMENTS";
+const META_DOC_REF = () => doc(db, 'artifacts', appId, 'public', 'data', 'report_meta', 'latest');
+
+let rawSheets = null;
+let isAuthenticated = false;
+let liveListenerActive = false;
+
+// ===================================
+// UI REFERENCES
+// ===================================
+const statusPill = document.getElementById('statusPill');
+const statusText = document.getElementById('statusText');
+const blCount = document.getElementById('blCount');
+const tableBody = document.getElementById('tableBody');
+const tableTitle = document.getElementById('tableTitle');
+const contCount = document.getElementById('contCount');
+const toastEl = document.getElementById('toast');
+
+// Progress Modal Elements
+const progressOverlay = document.getElementById('progressOverlay');
+const progressIcon = document.getElementById('progressIcon');
+const progressSubtitle = document.getElementById('progressSubtitle');
+const progressFill = document.getElementById('progressFill');
+const progressStatus = document.getElementById('progressStatus');
+const progressPercent = document.getElementById('progressPercent');
+
+function setStatus(type, text) {
+    statusPill.className = `status-pill status-${type}`;
+    statusText.innerText = text;
+}
+
+function showToast(message, type = 'success') {
+    toastEl.className = `toast toast-${type}`;
+    toastEl.innerText = message;
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 3000);
+}
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// ===================================
+// PROGRESS MODAL HELPERS
+// ===================================
+function openProgressModal(contNo) {
+    if (progressSubtitle) progressSubtitle.innerText = `Container: ${contNo}`;
+    if (progressIcon) progressIcon.innerText = '⚡';
+    if (progressFill) progressFill.style.width = '0%';
+    if (progressPercent) progressPercent.innerText = '0%';
+    if (progressStatus) progressStatus.innerText = 'Connecting to Firebase...';
+    if (progressOverlay) progressOverlay.classList.add('show');
+}
+
+function closeProgressModal() {
+    if (progressOverlay) progressOverlay.classList.remove('show');
+}
+
+async function smoothProgressTo(targetPercent, durationMs, statusTextStr, iconStr = null) {
+    const startPercent = progressFill ? (parseFloat(progressFill.style.width) || 0) : 0;
+    const steps = 15;
+    const stepDuration = Math.max(10, durationMs / steps);
+    for (let i = 1; i <= steps; i++) {
+        const cur = startPercent + ((targetPercent - startPercent) * (i / steps));
+        if (progressFill) progressFill.style.width = `${cur}%`;
+        if (progressPercent) progressPercent.innerText = `${Math.round(cur)}%`;
+        if (statusTextStr && progressStatus) progressStatus.innerText = statusTextStr;
+        if (iconStr && progressIcon) progressIcon.innerText = iconStr;
+        await sleep(stepDuration);
+    }
+}
+
+// ===================================
+// FIRESTORE REST (read-only for rawSheets with cache-busting)
+// ===================================
+function buildRestUrl(...segments) {
+    const p = segments.map(s => encodeURIComponent(String(s))).join('/');
+    return `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/${p}?t=${Date.now()}`;
+}
+async function fetchRestDoc(...segments) {
+    const r = await fetch(buildRestUrl(...segments), { cache: 'no-store' });
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`REST ${r.status}`);
+    return r.json();
+}
+function restStr(doc, f) { return doc?.fields?.[f]?.stringValue || ''; }
+function restInt(doc, f) { const v = doc?.fields?.[f]; return Number(v?.integerValue ?? v?.doubleValue ?? 0) || 0; }
+
+// ===================================
+// LOAD rawSheets (Directly from Firestore / REST)
+// ===================================
+async function loadRawSheets() {
+    if (isAuthenticated && auth.currentUser) {
+        const metaRef = META_DOC_REF();
+        const metaSnap = await getDoc(metaRef);
+        if (!metaSnap.exists()) throw new Error('No cloud data');
+        const metaData = metaSnap.data();
+        const chunkCount = metaData.chunkCount || 0;
+        if (chunkCount === 0) throw new Error('No data');
+        const chunkPromises = [];
+        for (let i = 0; i < chunkCount; i++) {
+            const chunkRef = doc(db, 'artifacts', appId, 'public', 'data', 'report_chunks', `chunk_${i}`);
+            chunkPromises.push(getDoc(chunkRef));
         }
+        const snaps = await Promise.all(chunkPromises);
+        let fullStr = "";
+        snaps.forEach((s, idx) => {
+            if (!s.exists()) throw new Error(`Chunk ${idx} missing`);
+            fullStr += s.data().data;
+        });
+        return JSON.parse(fullStr);
+    } else {
+        const meta = await fetchRestDoc('artifacts', appId, 'public', 'data', 'report_meta', 'latest');
+        if (!meta) throw new Error('No cloud data');
+        const cc = restInt(meta, 'chunkCount');
+        if (cc === 0) throw new Error('No data');
+        const ps = [];
+        for (let i = 0; i < cc; i++) ps.push(fetchRestDoc('artifacts', appId, 'public', 'data', 'report_chunks', `chunk_${i}`));
+        const cs = await Promise.all(ps);
+        let s = "";
+        cs.forEach((d, i) => { const c = restStr(d, 'data'); if (!c) throw new Error(`Chunk ${i} missing`); s += c; });
+        return JSON.parse(s);
+    }
+}
 
-        window.openUrgentShipper = (shipperName) => {
-            // Open global search and trigger search for this shipper exactly
-            window.showView('viewSearch');
-            const searchInput = document.getElementById('smtpBlSearch');
-            searchInput.value = shipperName;
-            // Trigger input event manually so results populate
-            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-        };
+// Save rawSheets to Cloud Chunks (exact match with Import Dashboard)
+async function saveRawSheetsToCloud() {
+    const str = JSON.stringify(rawSheets);
+    const chunkSize = 1000000;
+    const chunkCount = Math.ceil(str.length / chunkSize);
 
-        // --- AUTH & DATA LOADING ---
-        const initAuth = async () => {
-            if (!navigator.onLine) {
-                alert("No internet connection detected. Please check your network.");
-                document.getElementById('cloudLabel').innerText = "OFFLINE";
-                return;
-            }
-            try { 
-                document.getElementById('cloudLabel').innerText = "AUTHENTICATING...";
-                await signInAnonymously(auth); 
-            } catch (e) { 
-                console.error("Auth error", e);
-                document.getElementById('cloudLabel').innerText = "AUTH ERROR";
-            }
-        };
+    for (let i = 0; i < chunkCount; i++) {
+        const chunk = str.substring(i * chunkSize, (i + 1) * chunkSize);
+        const chunkRef = doc(db, 'artifacts', appId, 'public', 'data', 'report_chunks', `chunk_${i}`);
+        await setDoc(chunkRef, { data: chunk });
+    }
 
-        // --- BYPASS SECURED ACCESS LOGIC ---
-        document.getElementById('loginScreen').style.display = 'none';
+    const metaRef = META_DOC_REF();
+    await setDoc(metaRef, {
+        chunkCount: chunkCount,
+        updatedAt: new Date().toISOString()
+    });
+}
 
-        // Initialize immediately
-        initAuth();
-
-        window.loadData = async (force = false) => {
-            if (!navigator.onLine) {
-                document.getElementById('cloudLabel').innerText = "OFFLINE";
-                return;
-            }
-            if (!auth.currentUser) return;
-            
-            document.getElementById('loadingOverlay').classList.remove('hidden');
-            document.getElementById('loadingLabel').innerText = "CONNECTING ...";
-            
-            try {
-                const metaRef = doc(db, 'artifacts', appId, 'public', 'data', 'report_meta', 'latest');
-                const metaSnap = await getDoc(metaRef);
-                if (metaSnap.exists()) {
-                    const metaData = metaSnap.data();
-                    if (force || !lastUpdated || metaData.updatedAt > lastUpdated) {
-                        lastUpdated = metaData.updatedAt;
-                        let fullStr = "";
-                        for (let i = 0; i < metaData.chunkCount; i++) {
-                            const chunkSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'report_chunks', `chunk_${i}`));
-                            if (chunkSnap.exists()) {
-                                fullStr += chunkSnap.data().data;
-                            }
-                        }
-                        if (fullStr) {
-                            rawSheets = JSON.parse(fullStr);
-                        }
-                        document.getElementById('cloudLabel').innerText = "CONNECTED & ONLINE";
-                        document.getElementById('cloudIndicator').className = "w-3.5 h-3.5 rounded-full bg-emerald-500";
+// Real-time listener for cloud changes
+function initLiveReportListener() {
+    if (liveListenerActive) return;
+    try {
+        onSnapshot(META_DOC_REF(), async (snap) => {
+            if (snap.exists()) {
+                try {
+                    rawSheets = await loadRawSheets();
+                    if (selectedBL) {
+                        renderContainers(selectedBL);
+                    } else {
+                        populateBLDropdown();
                     }
+                } catch (e) {
+                    console.error("Live reload error:", e);
                 }
-            } catch (e) { 
-                console.error(e); 
-                document.getElementById('cloudLabel').innerText = "LOAD ERROR";
-            } finally { 
-                document.getElementById('loadingOverlay').classList.add('hidden'); 
             }
-        };
+        }, (error) => {
+            console.warn("Live listener notice:", error);
+        });
+        liveListenerActive = true;
+    } catch(err) {
+        console.error("initLiveReportListener error:", err);
+    }
+}
 
-        onAuthStateChanged(auth, u => { 
-            if(u) { 
-                window.loadData(true); 
-            } 
+// ===================================
+// APP INITIALIZATION
+// ===================================
+window.startApp = async function() {
+    setStatus('loading', 'Loading data...');
+    try {
+        rawSheets = await loadRawSheets();
+        setStatus('online', isAuthenticated ? 'Connected' : 'Read-Only');
+        populateBLDropdown();
+        initLiveReportListener();
+    } catch (e) {
+        console.error(e);
+        setStatus('error', 'Load Failed');
+    }
+};
+
+// ===================================
+// AUTH
+// ===================================
+async function initAuth() {
+    try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            try { await signInWithCustomToken(auth, __initial_auth_token); }
+            catch { await signInAnonymously(auth); }
+        } else {
+            await signInAnonymously(auth);
+        }
+    } catch (e) {
+        console.error("Auth Error:", e);
+    }
+}
+
+onAuthStateChanged(auth, (user) => {
+    isAuthenticated = !!user;
+    if (isAuthenticated) {
+        initLiveReportListener();
+    }
+});
+
+initAuth();
+
+// ===================================
+// COLUMN HELPER FOR SHIPPER SHEET
+// ===================================
+function getShipperColumnIndices() {
+    if (!rawSheets?.shipper || rawSheets.shipper.length === 0) {
+        return { contIdx: 0, sizeIdx: 1, blIdx: 2, consIdx: 3, emailIdx: 5 };
+    }
+    const hdr = rawSheets.shipper[0] || [];
+    let contIdx = hdr.findIndex(h => /CONT/i.test(String(h)));
+    if (contIdx === -1) contIdx = 0;
+    
+    let sizeIdx = hdr.findIndex(h => /SIZE/i.test(String(h)));
+    if (sizeIdx === -1) sizeIdx = 1;
+    
+    let blIdx = hdr.findIndex(h => /^BL|BL.*NO|BILL/i.test(String(h)));
+    if (blIdx === -1) blIdx = 2;
+    
+    let consIdx = hdr.findIndex(h => /CONSIGNEE|SHIPPER/i.test(String(h)));
+    if (consIdx === -1) consIdx = 3;
+    
+    let emailIdx = hdr.findIndex(h => /EMAIL|MAIL/i.test(String(h)));
+    if (emailIdx === -1) emailIdx = 5; // Column F in Shipper Tab
+    
+    return { contIdx, sizeIdx, blIdx, consIdx, emailIdx };
+}
+
+// ===================================
+// ALL B/Ls LIST
+// ===================================
+let allBLs = []; // populated after data loads
+let selectedBL = ''; // currently selected BL
+
+function buildBLList() {
+    if (!rawSheets?.shipper || rawSheets.shipper.length <= 1) {
+        blCount.innerText = '0 B/Ls Found';
+        allBLs = [];
+        return;
+    }
+    const { consIdx, blIdx } = getShipperColumnIndices();
+    const blSet = new Set();
+    rawSheets.shipper.slice(1).forEach(row => {
+        if (String(row[consIdx] || '').trim().toUpperCase() === SHIPPER_NAME) {
+            const bl = String(row[blIdx] || '').trim().toUpperCase();
+            if (bl && bl !== '-' && bl !== 'MANUAL') blSet.add(bl);
+        }
+    });
+    allBLs = [...blSet].sort();
+    blCount.innerText = `${allBLs.length} B/L${allBLs.length !== 1 ? 's' : ''} Found`;
+    // Enable search box
+    const input = document.getElementById('blSearchInput');
+    if (input) {
+        input.disabled = false;
+        input.placeholder = `Search from ${allBLs.length} B/L numbers...`;
+    }
+}
+
+// Legacy alias kept so live listener can call it
+function populateBLDropdown() { buildBLList(); }
+
+// ===================================
+// BL SEARCH UI
+// ===================================
+const blSearchInput = document.getElementById('blSearchInput');
+const blSuggestions = document.getElementById('blSuggestions');
+const blSelectedPill = document.getElementById('blSelectedPill');
+const blSelectedText = document.getElementById('blSelectedText');
+const saveAllBar = document.getElementById('saveAllBar');
+const saveAllBtn = document.getElementById('saveAllBtn');
+
+let activeSuggestionIdx = -1;
+
+function highlightMatch(text, query) {
+    if (!query) return escapeHtml(text);
+    const idx = text.indexOf(query.toUpperCase());
+    if (idx === -1) return escapeHtml(text);
+    return escapeHtml(text.slice(0, idx))
+        + `<span class="bl-suggestion-match">${escapeHtml(text.slice(idx, idx + query.length))}</span>`
+        + escapeHtml(text.slice(idx + query.length));
+}
+
+function showSuggestions(query) {
+    const q = (query || '').trim().toUpperCase();
+    const matches = q ? allBLs.filter(bl => bl.includes(q)) : allBLs.slice(0, 12);
+    if (matches.length === 0) {
+        blSuggestions.innerHTML = `<div style="padding:12px 16px;font-size:11px;color:#94a3b8;font-weight:600;">No B/L found for "${query}"</div>`;
+    } else {
+        blSuggestions.innerHTML = matches.map((bl, i) =>
+            `<div class="bl-suggestion-item" data-bl="${escapeHtml(bl)}" data-idx="${i}">
+                <span class="bl-icon">📋</span>
+                <span>${highlightMatch(bl, q)}</span>
+            </div>`
+        ).join('');
+        blSuggestions.querySelectorAll('.bl-suggestion-item').forEach(item => {
+            item.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                selectBL(item.getAttribute('data-bl'));
+            });
+        });
+    }
+    blSuggestions.classList.add('open');
+    activeSuggestionIdx = -1;
+}
+
+function hideSuggestions() {
+    blSuggestions.classList.remove('open');
+    activeSuggestionIdx = -1;
+}
+
+function selectBL(bl) {
+    selectedBL = bl;
+    blSearchInput.value = '';
+    blSearchInput.placeholder = 'Search another B/L number...';
+    blSelectedText.innerText = bl;
+    blSelectedPill.style.display = 'flex';
+    hideSuggestions();
+    renderContainers(bl);
+}
+
+window.clearBLSelection = function() {
+    selectedBL = '';
+    blSearchInput.value = '';
+    blSearchInput.placeholder = allBLs.length ? `Search from ${allBLs.length} B/L numbers...` : 'Type B/L number to search...';
+    blSelectedPill.style.display = 'none';
+    tableBody.innerHTML = `<div class="empty-state"><div class="icon-big">📋</div><p>Search a B/L number above to view containers</p></div>`;
+    contCount.innerText = '0 Containers';
+    tableTitle.innerText = 'Containers';
+    if (saveAllBar) saveAllBar.style.display = 'none';
+    blSearchInput.focus();
+};
+
+// Search box events
+blSearchInput.addEventListener('focus', () => { if (!selectedBL) showSuggestions(blSearchInput.value); });
+blSearchInput.addEventListener('input', () => { showSuggestions(blSearchInput.value); });
+blSearchInput.addEventListener('blur', () => { setTimeout(hideSuggestions, 200); });
+blSearchInput.addEventListener('keydown', (e) => {
+    const items = blSuggestions.querySelectorAll('.bl-suggestion-item');
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeSuggestionIdx = Math.min(activeSuggestionIdx + 1, items.length - 1);
+        items.forEach((it, i) => it.classList.toggle('active', i === activeSuggestionIdx));
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeSuggestionIdx = Math.max(activeSuggestionIdx - 1, 0);
+        items.forEach((it, i) => it.classList.toggle('active', i === activeSuggestionIdx));
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (activeSuggestionIdx >= 0 && items[activeSuggestionIdx]) {
+            selectBL(items[activeSuggestionIdx].getAttribute('data-bl'));
+        } else if (items.length === 1) {
+            selectBL(items[0].getAttribute('data-bl'));
+        }
+    } else if (e.key === 'Escape') {
+        hideSuggestions();
+    }
+});
+
+// ===================================
+// RENDER CONTAINERS (100% Live from rawSheets.shipper)
+// ===================================
+function getExistingEmail(containerNo) {
+    if (!rawSheets?.shipper || rawSheets.shipper.length <= 1) return '';
+    const { contIdx, emailIdx } = getShipperColumnIndices();
+    const target = String(containerNo || '').trim().toUpperCase();
+    const row = rawSheets.shipper.slice(1).find(r => String(r[contIdx] || '').trim().toUpperCase() === target);
+    if (row && row[emailIdx] !== undefined && row[emailIdx] !== null) {
+        return String(row[emailIdx]).trim();
+    }
+    return '';
+}
+
+function renderContainers(selectedBl) {
+    if (!selectedBl || !rawSheets?.shipper) {
+        tableBody.innerHTML = `<div class="empty-state"><div class="icon-big">📋</div><p>Search a B/L number above to view containers</p></div>`;
+        contCount.innerText = '0 Containers';
+        tableTitle.innerText = 'Containers';
+        if (saveAllBar) saveAllBar.style.display = 'none';
+        return;
+    }
+    const { contIdx, sizeIdx, blIdx, consIdx, emailIdx } = getShipperColumnIndices();
+
+    const matchingRows = [];
+    rawSheets.shipper.slice(1).forEach((row, idx) => {
+        if (String(row[consIdx] || '').trim().toUpperCase() === SHIPPER_NAME &&
+            String(row[blIdx] || '').trim().toUpperCase() === selectedBl) {
+            matchingRows.push({ row, realIdx: idx + 1 });
+        }
+    });
+
+    contCount.innerText = `${matchingRows.length} Container${matchingRows.length !== 1 ? 's' : ''}`;
+    tableTitle.innerText = `B/L: ${selectedBl}`;
+
+    if (matchingRows.length === 0) {
+        tableBody.innerHTML = `<div class="empty-state"><div class="icon-big">📦</div><p>No containers found for this B/L</p></div>`;
+        if (saveAllBar) saveAllBar.style.display = 'none';
+        return;
+    }
+
+    let html = `<table class="cont-table"><thead><tr>
+        <th style="width:40px">Sr</th>
+        <th>Container No.</th>
+        <th style="width:50px; text-align:center">Size</th>
+        <th>Saved Email ID</th>
+        <th>New Email ID</th>
+        <th style="width:120px; text-align:center">Action</th>
+    </tr></thead><tbody>`;
+
+    matchingRows.forEach((m, i) => {
+        const contNo = String(m.row[contIdx] || '').trim().toUpperCase();
+        const size = String(m.row[sizeIdx] || '20').trim();
+        const existingEmail = (m.row[emailIdx] !== undefined && m.row[emailIdx] !== null) ? String(m.row[emailIdx]).trim() : '';
+
+        html += `<tr>
+            <td style="text-align:center; color:#94a3b8; font-size:10px;">${i + 1}</td>
+            <td class="cont-no">${escapeHtml(contNo)}</td>
+            <td class="size-cell">${escapeHtml(size)}"</td>
+            <td>
+                ${existingEmail
+                    ? `<span class="existing-email-tag">${escapeHtml(existingEmail)}</span>`
+                    : `<span style="font-size:9px; color:#cbd5e1; font-weight:600;">— No Email —</span>`
+                }
+            </td>
+            <td>
+                <input type="text" class="email-input" id="email-${escapeHtml(contNo)}" placeholder="Enter new Email ID..." data-cont="${escapeHtml(contNo)}">
+            </td>
+            <td style="text-align:center;">
+                <button class="save-btn save-btn-primary" id="btn-${escapeHtml(contNo)}" data-cont="${escapeHtml(contNo)}">Update & Save</button>
+            </td>
+        </tr>`;
+    });
+
+    html += '</tbody></table>';
+    tableBody.innerHTML = html;
+
+    // Show Save All bar
+    if (saveAllBar) saveAllBar.style.display = 'flex';
+    if (saveAllBtn) saveAllBtn.disabled = false;
+
+    // Attach individual save handlers
+    tableBody.querySelectorAll('.save-btn-primary').forEach(btn => {
+        btn.addEventListener('click', () => saveSingleContainer(btn.getAttribute('data-cont')));
+    });
+}
+
+// ===================================
+// UPDATE EMAIL IN rawSheets HELPER
+// ===================================
+function applyEmailToSheets(contNo, newEmail) {
+    const { contIdx, emailIdx } = getShipperColumnIndices();
+    const target = String(contNo || '').trim().toUpperCase();
+    let updated = false;
+    rawSheets.shipper.slice(1).forEach(row => {
+        if (String(row[contIdx] || '').trim().toUpperCase() === target) {
+            updated = true;
+            while (row.length <= emailIdx) row.push('');
+            const cur = String(row[emailIdx] || '').trim();
+            if (cur) {
+                const parts = cur.split(';').map(s => s.trim()).filter(Boolean);
+                if (!parts.includes(newEmail)) parts.push(newEmail);
+                row[emailIdx] = parts.join(';');
+            } else {
+                row[emailIdx] = newEmail;
+            }
+        }
+    });
+    return updated;
+}
+
+// ===================================
+// SAVE ALL CONTAINERS EMAIL
+// ===================================
+window.saveAllContainers = async function() {
+    // Collect all non-empty email inputs
+    const inputs = tableBody.querySelectorAll('.email-input');
+    const toSave = [];
+    inputs.forEach(inp => {
+        const email = inp.value.trim();
+        if (email) toSave.push({ contNo: inp.getAttribute('data-cont'), email });
+    });
+
+    if (toSave.length === 0) {
+        showToast('No new Email IDs entered.', 'error');
+        return;
+    }
+
+    if (saveAllBtn) saveAllBtn.disabled = true;
+
+    // Open modal with "Save All" label
+    if (progressSubtitle) progressSubtitle.innerText = `Saving ${toSave.length} container(s)...`;
+    if (progressIcon) progressIcon.innerText = '💾';
+    if (progressFill) progressFill.style.width = '0%';
+    if (progressPercent) progressPercent.innerText = '0%';
+    if (progressStatus) progressStatus.innerText = 'Connecting to Firebase...';
+    if (progressOverlay) progressOverlay.classList.add('show');
+    // Override title text
+    const pTitle = document.querySelector('.progress-title');
+    if (pTitle) pTitle.innerText = 'Saving All Emails';
+
+    try {
+        // Phase 1: Fetch fresh data
+        await smoothProgressTo(20, 250, 'Connecting to Firebase cloud...', '⚡');
+        await smoothProgressTo(40, 300, 'Fetching live Firebase records...', '🔄');
+        rawSheets = await loadRawSheets();
+
+        // Phase 2: Apply all emails
+        await smoothProgressTo(65, 200, 'Updating all email mappings...', '📝');
+        let failedConts = [];
+        toSave.forEach(({ contNo, email }) => {
+            const ok = applyEmailToSheets(contNo, email);
+            if (!ok) failedConts.push(contNo);
         });
 
-        window.saveToCloud = async () => {
-            if (!navigator.onLine) {
-                alert("No internet connection. Data not saved.");
-                return false;
-            }
-            if (!auth.currentUser) return false;
-            if (window.isSavingInProgress) return false;
-            
-            window.isSavingInProgress = true;
-            
-            // UPDATED LOGIC: Show Loading overlay with %
-            const overlay = document.getElementById('loadingOverlay');
-            const label = document.getElementById('loadingLabel');
-            const progressText = document.getElementById('savingProgressText');
-            const warningText = document.getElementById('savingWarning');
-            
-            overlay.classList.remove('hidden');
-            label.innerText = "DATA SAVING...";
-            progressText.innerText = "0%";
-            progressText.classList.remove('hidden');
-            warningText.classList.remove('hidden');
-            
-            try {
-                const str = JSON.stringify(rawSheets);
-                const chunkSize = 500000; 
-                const chunkCount = Math.ceil(str.length / chunkSize);
-                
-                for (let i = 0; i < chunkCount; i++) {
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'report_chunks', `chunk_${i}`), { 
-                        data: str.substring(i * chunkSize, (i + 1) * chunkSize) 
-                    });
-                    const progress = Math.round(((i + 1) / chunkCount) * 100);
-                    progressText.innerText = `${progress}%`;
-                }
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'report_meta', 'latest'), { 
-                    chunkCount, 
-                    updatedAt: new Date().toISOString() 
-                });
-                return true;
-            } catch (e) { 
-                alert("Save Failed: Check your internet connection."); 
-                return false; 
-            } finally { 
-                overlay.classList.add('hidden'); 
-                progressText.classList.add('hidden');
-                warningText.classList.add('hidden');
-                window.isSavingInProgress = false;
-            }
-        };
-
-        document.getElementById('saveLocalChangesBtn').onclick = async () => { 
-            await window.saveToCloud(); 
-            alert("Saved."); 
-        };
-
-        // --- HELPERS ---
-        const formatToDDMMYYYY = (val) => {
-            if (!val) return '';
-            let date;
-            if (val instanceof Date) {
-                date = val;
-            } else {
-                const numVal = parseFloat(val);
-                if (!isNaN(numVal) && isFinite(numVal) && numVal > 40000) {
-                    date = new Date(Math.round((numVal - 25569) * 86400 * 1000));
-                } else {
-                    const parts = String(val).split(/[-.\/]/);
-                    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-                        let d = parseInt(parts[0]);
-                        let m = parseInt(parts[1]) - 1;
-                        let y = parseInt(parts[2]);
-                        if (y < 100) y += 2000;
-                        date = new Date(y, m, d);
-                    } else {
-                        date = new Date(val);
-                    }
-                }
-            }
-            if (isNaN(date.getTime())) return String(val);
-            const dd = String(date.getDate()).padStart(2, '0');
-            const mm = String(date.getMonth() + 1).padStart(2, '0');
-            const yyyy = date.getFullYear();
-            return `${dd}-${mm}-${yyyy}`;
-        };
-
-        const formatToDDMMYYYY_HHMM = (val) => {
-            if (!val) return '';
-            let date;
-            if (val instanceof Date) {
-                date = val;
-            } else {
-                const numVal = parseFloat(val);
-                if (!isNaN(numVal) && isFinite(numVal) && numVal > 40000) {
-                    date = new Date(Math.round((numVal - 25569) * 86400 * 1000));
-                } else {
-                    const parts = String(val).split(/[-\/ :]/);
-                    if (parts.length >= 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-                        let d = parseInt(parts[0]);
-                        let m = parseInt(parts[1]) - 1;
-                        let y = parseInt(parts[2]);
-                        if (y < 100) y += 2000;
-                        let hh = parts[3] ? parseInt(parts[3]) : 0;
-                        let min = parts[4] ? parseInt(parts[4]) : 0;
-                        date = new Date(y, m, d, hh, min);
-                    } else {
-                        date = new Date(val);
-                    }
-                }
-            }
-            if (isNaN(date.getTime())) return String(val);
-            const dd = String(date.getDate()).padStart(2, '0');
-            const mm = String(date.getMonth() + 1).padStart(2, '0');
-            const yyyy = date.getFullYear();
-            const hh = String(date.getHours()).padStart(2, '0');
-            const min = String(date.getMinutes()).padStart(2, '0');
-            return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
-        };
-
-        window.getFilteredSmtp = (shipper, vessel, date, searchVal) => {
-            const savedShippers = new Map();
-            const savedShipperNames = new Set();
-            if (rawSheets.shipper && rawSheets.shipper.length > 1) {
-                rawSheets.shipper.slice(1).forEach(sRow => {
-                    const cont = String(sRow[0] || '').trim().toUpperCase();
-                    const bl = String(sRow[2] || '').trim().toUpperCase();
-                    const name = String(sRow[3] || '').trim().toUpperCase();
-                    if (name) {
-                        savedShipperNames.add(name);
-                        if (cont) savedShippers.set(cont, name);
-                        if (bl) savedShippers.set('BL_' + bl, name);
-                    }
-                });
-            }
-
-            const getShipperName = (cont, bl, fallback) => {
-                if (savedShippers.has(cont)) return savedShippers.get(cont);
-                if (savedShippers.has('BL_' + bl)) return savedShippers.get('BL_' + bl);
-                return fallback;
-            };
-
-            return rawSheets.smtp.slice(1).filter(r => {
-                const bl = String(r[9] || '').trim().toUpperCase();
-                const cont = String(r[2] || '').trim().toUpperCase();
-                const smtpConsignee = String(r[24] || '').trim().toUpperCase();
-                const finalShipper = getShipperName(cont, bl, smtpConsignee);
-                
-                const rVessel = String(r[5] || '').trim() || 'UNKNOWN';
-                const rDate = formatToDDMMYYYY(r[18] || r[17] || '') || 'N/A';
-                
-                if (finalShipper !== shipper.toUpperCase() || rVessel !== vessel || rDate !== date) {
-                    return false;
-                }
-                
-                if (searchVal) {
-                    const isSaved = savedShipperNames.has(finalShipper);
-                    const matchesSearch = bl.includes(searchVal) || cont.includes(searchVal) || finalShipper.includes(searchVal);
-                    if (!matchesSearch) return false;
-                    
-                    if (!isSaved && !bl.includes(searchVal) && !cont.includes(searchVal)) return false;
-                }
-                return true;
-            });
-        };
-
-        // --- SEARCH ENGINE (SORT BY LATEST VESSEL & SAVED SHIPPERS ONLY) ---
-        document.getElementById('smtpBlSearch').oninput = (e) => {
-            const searchVal = e.target.value.trim().toUpperCase();
-            const resultBox = document.getElementById('searchResultBox');
-            const resDiv = document.getElementById('searchResults');
-            document.getElementById('searchDetailCard').classList.add('hidden');
-
-            if (searchVal.length < 3 || !rawSheets.smtp || rawSheets.smtp.length === 0) { 
-                resultBox.classList.add('hidden'); 
-                return; 
-            }
-
-            const savedShippers = new Map();
-            const savedShipperNames = new Set();
-            
-            if (rawSheets.shipper && rawSheets.shipper.length > 1) {
-                rawSheets.shipper.slice(1).forEach(sRow => {
-                    const cont = String(sRow[0] || '').trim().toUpperCase();
-                    const bl = String(sRow[2] || '').trim().toUpperCase();
-                    const name = String(sRow[3] || '').trim().toUpperCase();
-                    if (name) {
-                        savedShipperNames.add(name);
-                        if (cont) savedShippers.set(cont, name);
-                        if (bl) savedShippers.set('BL_' + bl, name);
-                    }
-                });
-            }
-
-            const getShipperName = (cont, bl, fallback) => {
-                if (savedShippers.has(cont)) return savedShippers.get(cont);
-                if (savedShippers.has('BL_' + bl)) return savedShippers.get('BL_' + bl);
-                return fallback;
-            };
-
-            const matches = rawSheets.smtp.slice(1).filter(row => {
-                const bl = String(row[9] || '').trim().toUpperCase();
-                const cont = String(row[2] || '').trim().toUpperCase();
-                const smtpConsignee = String(row[24] || '').trim().toUpperCase();
-                const finalShipper = getShipperName(cont, bl, smtpConsignee);
-                const isSaved = savedShipperNames.has(finalShipper);
-
-                const matchesSearch = bl.includes(searchVal) || cont.includes(searchVal) || finalShipper.includes(searchVal);
-                if (!matchesSearch) return false;
-                
-                // Hide extra unsaved shippers when searching by name
-                if (!isSaved && !bl.includes(searchVal) && !cont.includes(searchVal)) {
-                    return false;
-                }
-                
-                return true;
-            });
-
-            const stats = new Map();
-            matches.forEach(row => {
-                const bl = String(row[9] || '').trim().toUpperCase();
-                const cont = String(row[2] || '').trim().toUpperCase();
-                const smtpConsignee = String(row[24] || '').trim().toUpperCase();
-                const finalShipper = getShipperName(cont, bl, smtpConsignee);
-
-                const vessel = String(row[5] || '').trim();
-                const handover = formatToDDMMYYYY(row[18] || row[17] || '');
-                const uniqueKey = `${finalShipper}||${vessel}||${handover}`;
-
-                if (!stats.has(uniqueKey)) {
-                    let ts = 0;
-                    if (handover) {
-                        const p = handover.split('-');
-                        if (p.length === 3) {
-                            // Using YYYY, MM-1, DD to get accurate sorting timestamp
-                            ts = new Date(p[2], p[1]-1, p[0]).getTime();
-                        }
-                    }
-                    stats.set(uniqueKey, { 
-                        name: finalShipper, 
-                        vessel: vessel || 'UNKNOWN', 
-                        date: handover || 'N/A', 
-                        timestamp: ts,
-                        total: 0, 
-                        pending: 0 
-                    });
-                }
-                const entry = stats.get(uniqueKey);
-                entry.total++;
-                
-                const contNo = String(row[2]).trim().toUpperCase();
-                const webRow = rawSheets.website.find(w => String(w[3]).trim().toUpperCase() === contNo);
-                const railDate = String(webRow ? webRow[8] : '').trim().toUpperCase();
-                if (!webRow || railDate === 'PENDING' || railDate === '' || railDate === '-') {
-                    entry.pending++;
-                }
-            });
-
-            if (stats.size > 0) {
-                resultBox.classList.remove('hidden');
-                
-                // Sort array by newest date first
-                const sortedData = Array.from(stats.values()).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10);
-                
-                resDiv.innerHTML = sortedData.map(data => `
-                    <div onclick="window.showSearchReport('${data.name.replace(/'/g, "\\'")}', '${data.vessel.replace(/'/g, "\\'")}', '${data.date.replace(/'/g, "\\'")}', '${searchVal.replace(/'/g, "\\'")}')" class="p-4 bg-slate-50 border rounded-2xl active:bg-blue-600 group transition-all mb-2 cursor-pointer">
-                        <p class="text-[8px] font-black text-rose-600 uppercase mb-1 group-active:text-white">Record Found:</p>
-                        <p class="font-black text-slate-800 uppercase text-xs group-active:text-white mb-2 leading-tight">${data.name}</p>
-                        <div class="flex flex-col gap-0.5 mb-2">
-                            <span class="text-[10px] font-bold text-slate-600 group-active:text-white">🚢 ${data.vessel}</span>
-                            <span class="text-[10px] font-bold text-slate-400 group-active:text-white/60">${data.date}</span>
-                        </div>
-                        <div class="flex gap-4 text-[9px] font-black uppercase text-slate-500 group-active:text-white/70">
-                            <span>Total: ${data.total}</span>
-                            <span>Pending: ${data.pending}</span>
-                        </div>
-                    </div>`).join('');
-            } else { 
-                resDiv.innerHTML = "<p class='text-center py-6 text-slate-400 font-black uppercase'>No Match</p>"; 
-            }
-        };
-
-        function resetSearchForm() {
-            document.getElementById('smtpBlSearch').value = '';
-            document.getElementById('searchResultBox').classList.add('hidden');
-            document.getElementById('searchDetailCard').classList.add('hidden');
-        }
-
-        window.showSearchReport = (shipper, vessel, date, searchVal) => {
-            const smtpE = window.getFilteredSmtp(shipper, vessel, date, searchVal);
-            const webE = rawSheets.website.slice(1).filter(w => smtpE.some(s => String(s[2]).trim().toUpperCase() === String(w[3]).trim().toUpperCase()));
-            
-            let t20=0, t40=0, railed=0, arrived=0; 
-            const bls = [...new Set(smtpE.map(s => s[9]))];
-            const lines = [...new Set(smtpE.map(s => s[23] || 'MSC'))];
-
-            smtpE.forEach(s => { 
-                if(String(s[3]).includes('40')) t40++; 
-                else t20++; 
-            });
-            
-            webE.forEach(w => { 
-                const rd = String(w[8]).toUpperCase(); 
-                if(rd && !['PENDING','','-','NOT RAILOUT'].includes(rd)) { 
-                    railed++; 
-                    if(String(w[9]).toUpperCase().includes("TRAIN ARRIVED")) {
-                        arrived++; 
-                    }
-                } 
-            });
-
-            const card = document.getElementById('searchDetailCard');
-            document.getElementById('searchResultBox').classList.add('hidden');
-            card.classList.remove('hidden');
-            
-            card.innerHTML = `
-                <div class="border-b pb-4">
-                    <h3 class="font-black text-slate-800 uppercase text-xs mb-1">Status Summary</h3>
-                    <p class="font-bold text-[9px] text-blue-600 uppercase tracking-widest">${shipper}</p>
-                    <p class="font-bold text-[9px] text-slate-500 uppercase tracking-widest mt-1">🚢 ${vessel} | ${date}</p>
-                </div>
-                <div class="space-y-4">
-                    <div class="bg-slate-900 p-4 rounded-2xl text-white shadow-lg">
-                        <p class="text-[8px] font-black text-white/40 uppercase mb-1">BL NO (LINE)</p>
-                        <p class="font-black uppercase text-xs mb-3">${bls.join(', ')} (${lines.join('/')})</p>
-                        <div class="flex justify-between items-end border-t border-white/10 pt-3">
-                           <div>
-                               <p class="text-[8px] font-black text-white/40 uppercase">Total Units</p>
-                               <p class="text-2xl font-black leading-none">${smtpE.length}</p>
-                           </div>
-                           <div class="flex gap-2">
-                               <div class="px-2 py-1 bg-white/10 rounded font-black text-[9px]">20: ${t20}</div>
-                               <div class="px-2 py-1 bg-white/10 rounded font-black text-[9px]">40: ${t40}</div>
-                           </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-center">
-                            <p class="text-[8px] font-black text-emerald-600 uppercase">Railout</p>
-                            <p class="text-xl font-black text-emerald-800">${railed}</p>
-                        </div>
-                        <div class="p-4 bg-blue-50 rounded-2xl border border-blue-100 text-center">
-                            <p class="text-[8px] font-black text-blue-600 uppercase">Arrived</p>
-                            <p class="text-xl font-black text-blue-800">${arrived}</p>
-                        </div>
-                        <div class="p-4 bg-orange-50 rounded-2xl border border-orange-100 text-center">
-                            <p class="text-[8px] font-black text-orange-600 uppercase">In Transit</p>
-                            <p class="text-xl font-black text-orange-800">${railed - arrived}</p>
-                        </div>
-                        <div class="p-4 bg-rose-50 rounded-2xl border border-rose-100 text-center">
-                            <p class="text-[8px] font-black text-rose-600 uppercase">Pending</p>
-                            <p class="text-xl font-black text-rose-800">${smtpE.length - railed}</p>
-                        </div>
-                    </div>
-                    <div class="space-y-2 pt-4 border-t">
-                        <button onclick="window.sendWhatsApp('${shipper.replace(/'/g, "\\'")}', '${vessel.replace(/'/g, "\\'")}', '${date.replace(/'/g, "\\'")}', '${searchVal.replace(/'/g, "\\'")}')" class="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 uppercase text-xs shadow-lg active:scale-95 transition-all"><i data-lucide="message-circle" class="w-4 h-4"></i> Send WhatsApp Message</button>
-                        <button onclick="window.generatePDF('${shipper.replace(/'/g, "\\'")}', '${vessel.replace(/'/g, "\\'")}', '${date.replace(/'/g, "\\'")}', '${searchVal.replace(/'/g, "\\'")}')" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 uppercase text-xs shadow-lg active:scale-95 transition-all"><i data-lucide="file-text" class="w-4 h-4"></i> Download PDF & Copy</button>
-                    </div>
-                </div>`;
-            lucide.createIcons();
-        };
-
-        // --- WHATSAPP LOGIC ---
-        window.sendWhatsApp = (shipper, vessel, date, searchVal) => {
-            const smtpE = window.getFilteredSmtp(shipper, vessel, date, searchVal);
-            const webE = rawSheets.website.slice(1).filter(w => smtpE.some(s => String(s[2]).trim().toUpperCase() === String(w[3]).trim().toUpperCase()));
-            
-            let msg = `Dear Sir,\n\nPlease find below B/L status :-\n\n`; 
-            const blGroups = {};
-            
-            smtpE.forEach(s => { 
-                const bl = String(s[9]); 
-                if(!blGroups[bl]) {
-                    blGroups[bl] = { containers: [], t20: 0, t40: 0, line: s[23]||'MSC' }; 
-                }
-                blGroups[bl].containers.push(String(s[2]).trim().toUpperCase()); 
-                if(String(s[3]).includes('40')) {
-                    blGroups[bl].t40++; 
-                } else {
-                    blGroups[bl].t20++; 
-                }
-            });
-
-            Object.keys(blGroups).forEach(bl => { 
-                const info = blGroups[bl]; 
-                const total = info.t20 + info.t40; 
-                const totalFmt = total < 10 ? '0' + total : total;
-                const sizeFmt = info.t40 > 0 ? '40' : '20';
-                
-                msg += `*BL: ${bl} | ${totalFmt}x${sizeFmt} | ${info.line}*\n`;
-                
-                const trainGroups = {};
-                const normalPending = [];
-                const scanningPending = [];
-
-                info.containers.forEach(cont => {
-                    const w = webE.find(x => String(x[3]).trim().toUpperCase() === cont);
-                    const remark = String(w ? w[9] : '').toUpperCase();
-                    const railDateRaw = w ? w[8] : '';
-                    const railDateStr = String(railDateRaw || '').trim().toUpperCase();
-                    const isRailed = railDateStr && !['PENDING', '', '-', 'NOT RAILOUT'].includes(railDateStr);
-
-                    if (isRailed) {
-                        const trainKey = String(w ? w[4] : 'UNKNOWN').trim().split('(')[0]; 
-                        
-                        // Strict DD-MM-YYYY formatter for WhatsApp
-                        let fmtDate = "N/A";
-                        if (railDateRaw) {
-                            let strDate = String(railDateRaw).trim().split(' ')[0];
-                            let parts = strDate.split(/[-/]/);
-                            if (parts.length === 3) {
-                                let p1 = parseInt(parts[0], 10);
-                                let p2 = parseInt(parts[1], 10);
-                                let p3 = parseInt(parts[2], 10);
-                                if (p3 < 100) p3 += 2000;
-                                
-                                let d = p1, m = p2;
-                                // Agar second part 12 se bada hai, toh matlab wo date (DD) hai aur format MM-DD-YYYY tha
-                                if (p2 > 12) { d = p2; m = p1; } 
-                                
-                                fmtDate = `${String(d).padStart(2, '0')}-${String(m).padStart(2, '0')}-${p3}`;
-                            } else {
-                                let dt = new Date(railDateRaw);
-                                if (!isNaN(dt.getTime())) {
-                                    fmtDate = `${String(dt.getDate()).padStart(2, '0')}-${String(dt.getMonth() + 1).padStart(2, '0')}-${dt.getFullYear()}`;
-                                } else {
-                                    fmtDate = strDate;
-                                }
-                            }
-                        }
-
-                        const groupKey = `${trainKey}_${fmtDate}`;
-
-                        if (!trainGroups[groupKey]) {
-                            trainGroups[groupKey] = { train: trainKey, date: fmtDate, remark: remark, containers: [] };
-                        }
-                        trainGroups[groupKey].containers.push({ cont: cont, remark: remark });
-                    } else {
-                        const smtpMatch = rawSheets.smtp.find(s => String(s[2]).trim().toUpperCase() === cont);
-                        if (String(smtpMatch ? smtpMatch[1] : '').toUpperCase() === "UNDER SCANNING") {
-                            scanningPending.push(cont);
-                        } else {
-                            normalPending.push(cont);
-                        }
-                    }
-                });
-
-                Object.values(trainGroups).forEach(tg => {
-                    msg += `🚆${tg.train} | ${tg.date}\n`;
-                    const isTrainArrived = tg.remark.includes("ARRIVED");
-                    
-                    if (isTrainArrived) {
-                        const arrMatch = tg.remark.match(/ARRIVED ON\s+(\d{2}-\d{2}-\d{4})/);
-                        const arrDate = arrMatch ? arrMatch[1] : '';
-                        msg += `✅*Arrived* : ${arrDate}\n`;
-                    } else if (tg.remark.includes("ETA")) {
-                        const etaMatch = tg.remark.match(/ETA\s+(\d{2}-\d{2}-\d{4})/);
-                        const etaDate = etaMatch ? etaMatch[1] : '';
-                        msg += `🔰*ETA* : ${etaDate}\n`;
-                    }
-
-                    tg.containers.forEach(item => {
-                        if (isTrainArrived) {
-                            msg += `✅${item.cont}\n`;
-                        } else {
-                            msg += `🔰${item.cont}\n`;
-                        }
-                    });
-                });
-
-                if (normalPending.length > 0) {
-                    msg += `⚠️*Pending*\n`;
-                    normalPending.forEach(c => { msg += `⚠️${c}\n`; });
-                }
-                if (scanningPending.length > 0) {
-                    msg += `🔴*Under Scanning*\n`;
-                    scanningPending.forEach(c => { msg += `🔴${c}\n`; });
-                }
-                msg += `\n`;
-            });
-            msg += `\n\n\nThanks & Regards,\n*Hind Terminals Pvt. Ltd.*`;
-            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-        };
-
-        // --- PDF LOGIC ---
-        window.generatePDF = async (shipper, vessel, date, searchVal) => {
-            const smtpEntries = window.getFilteredSmtp(shipper, vessel, date, searchVal);
-            const webEntries = rawSheets.website.slice(1).filter(w => smtpEntries.some(s => String(s[2]).trim().toUpperCase() === String(w[3]).trim().toUpperCase()));
-            const uniqueBls = [...new Set(smtpEntries.map(s => s[9]))];
-            
-            let htmlContent = `
-            <div style="padding: 20px; font-family: Calibri, sans-serif; color: #000;">
-                <div style="border-bottom: 2px solid #055094; padding-bottom: 10px; margin-bottom: 15px;">
-                    <b style="font-size: 14pt; color: #055094;">Hind Terminals Pvt Ltd</b><br>
-                    <span style="font-size: 8pt; color: #666;">SCO 14-15, Dhamija Tower, Ludhiana | customerserviceludhiana@hindterminals.com</span>
-                </div>
-                <p style="font-size: 10pt;">Dear Sir,<br><br>Please find below status of Containers / BLs:-</p>`;
-
-            uniqueBls.forEach(bl => {
-                const relSmtp = smtpEntries.filter(s => s[9] === bl);
-                const line = relSmtp[0][23] || 'MSC';
-                htmlContent += `
-                <div style="margin-top: 20px;">
-                    <div style="background: #055094; color: white; padding: 6px 10px; font-weight: bold; font-size: 10pt;">B/L No : ${bl} | S/Line : ${line} | Total Units: ${relSmtp.length}</div>
-                    <table style="width: 100%; border-collapse: collapse; margin-top: 5px;">
-                        <thead><tr style="background: #ffd966; font-size: 8pt;">
-                            <th style="border: 1px solid #999; padding: 4px;">Sr</th>
-                            <th style="border: 1px solid #999; padding: 4px;">Container</th>
-                            <th style="border: 1px solid #999; padding: 4px;">Size</th>
-                            <th style="border: 1px solid #999; padding: 4px;">Train/Date</th>
-                            <th style="border: 1px solid #999; padding: 4px;">Status</th>
-                        </tr></thead>
-                        <tbody>`;
-                relSmtp.forEach((s, idx) => {
-                    const cont = String(s[2]).trim().toUpperCase(); 
-                    const web = webEntries.find(w => String(w[3]).trim().toUpperCase() === cont);
-                    let status = String(web ? web[9] : 'PENDING').toUpperCase(); 
-                    
-                    let bgColor = "#fff1f2";
-                    let statusColor = "#be123c";
-                    
-                    if (status.includes("ARRIVED")) {
-                        bgColor = "#dcfce7";
-                        statusColor = "#15803d";
-                    } else if (status.includes("RAILOUT")) {
-                        bgColor = "#fffbeb";
-                        statusColor = "#854d0e";
-                    }
-
-                    htmlContent += `
-                        <tr style="font-size: 8pt; text-align: center;">
-                            <td style="border: 1px solid #999; padding: 4px;">${idx + 1}</td>
-                            <td style="border: 1px solid #999; padding: 4px;">${cont}</td>
-                            <td style="border: 1px solid #999; padding: 4px;">${String(s[3]).includes('40') ? '40' : '20'}"</td>
-                            <td style="border: 1px solid #999; padding: 4px;">${web ? web[4] : '-'}<br>${formatToDDMMYYYY(web ? web[8] : '')}</td>
-                            <td style="border: 1px solid #999; padding: 4px; background: ${bgColor}; color: ${statusColor}; font-weight: bold;">${status}</td>
-                        </tr>`;
-                });
-                htmlContent += `</tbody></table></div>`;
-            });
-            htmlContent += `<p style="font-size: 9pt; margin-top: 20px;">Regards,<br><b>Hind Terminals Pvt Ltd</b></p></div>`;
-            
-            const opt = { 
-                margin: 5, 
-                filename: `Status_${shipper}.pdf`, 
-                image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2 }, 
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
-            };
-            html2pdf().set(opt).from(htmlContent).save();
-            alert("PDF Generated.");
-        };
-
-        // --- SINGLE STACK UPDATE SUMMARY MODAL ---
-        function processStackExcel(e, type) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            
-            reader.onload = (evt) => {
-                const wb = XLSX.read(evt.target.result, { type: 'binary' });
-                const ws = wb.Sheets[wb.SheetNames[0]];
-                const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-                let rakeNo = "";
-                let dateStr = "";
-                let timeStr = "00:00";
-                let conts = [];
-
-                if (type === 'single') {
-                    if (json.length < 11) return alert("Insufficient rows.");
-                    
-                    rakeNo = ws['H7'] ? String(ws['H7'].v).trim().toUpperCase() : '';
-                    if (!rakeNo) {
-                        for (let r = 4; r < 8; r++) { 
-                            if (json[r] && json[r][7] && String(json[r][7]).trim().length > 3) { 
-                                rakeNo = String(json[r][7]).trim().toUpperCase(); 
-                                break; 
-                            } 
-                        }
-                    }
-                    if (!rakeNo) return alert("Rake No not found (H7).");
-
-                    let ah11 = ""; 
-                    for (let r = 0; r < Math.min(20, json.length); r++) { 
-                        if (json[r] && json[r][34]) { 
-                            ah11 = json[r][34]; 
-                            break; 
-                        } 
-                    }
-                    
-                    const fullDt = formatToDDMMYYYY_HHMM(ah11);
-                    if (fullDt && fullDt.includes(' ')) { 
-                        dateStr = fullDt.split(' ')[0]; 
-                        timeStr = fullDt.split(' ')[1]; 
-                    }
-                    json.slice(10).forEach(r => { 
-                        if (String(r[2]).trim()) {
-                            conts.push({ 
-                                cont: String(r[2]).trim().toUpperCase(), 
-                                stack: 'Lower', 
-                                dest: String(r[26] || '').trim().toUpperCase() 
-                            }); 
-                        }
-                    });
-                } else {
-                    rakeNo = String(json[1][2] || '').trim().toUpperCase();
-                    json.slice(1).forEach(r => { 
-                        if (String(r[5]).trim()) {
-                            conts.push({ 
-                                cont: String(r[5]).trim().toUpperCase(), 
-                                stack: String(r[27]).trim(), 
-                                dest: '' 
-                            }); 
-                        }
-                    });
-                }
-                
-                if(!rakeNo) return alert("Rake No not found!");
-
-                if (type === 'single') {
-                    const updatedContainers = [];
-                    const notUpdatedContainers = [];
-                    const targetDests = ['INHKR', 'INHMR', 'INHDL'];
-
-                    conts.forEach(item => {
-                        const rowIndex = rawSheets.website.findIndex(w => String(w[3]).trim().toUpperCase() === item.cont);
-                        if (rowIndex !== -1) {
-                            updatedContainers.push({ index: rowIndex, data: { rake: rakeNo } });
-                        } else {
-                            notUpdatedContainers.push({ cont: item.cont, dest: item.dest || 'OTHER', isPriority: targetDests.includes(item.dest) });
-                        }
-                    });
-
-                    showUpdateSummaryModal(rakeNo, conts.length, updatedContainers, notUpdatedContainers);
-                } else {
-                    pendingExcelUpdateData = { rakeNo, date: formatToDDMMYYYY(new Date()), time: timeStr, containers: conts };
-                    document.getElementById('manualDateModal').classList.remove('hidden');
-                    document.getElementById('manualRailDateInput').value = ``;
-                }
-            };
-            reader.readAsBinaryString(file);
-            e.target.value = '';
-        }
-
-        window.processStackExcel = processStackExcel;
-
-        document.getElementById('websiteExcelInput').onchange = (e) => processStackExcel(e, 'single');
-        document.getElementById('doubleStackExcelInput').onchange = (e) => processStackExcel(e, 'double');
-
-
-        function showUpdateSummaryModal(rake, totalCount, updates, notUpdates) {
-            const notUpdatedListHtml = notUpdates.length > 0 
-                ? notUpdates.map(item => {
-                    const colorClass = item.isPriority ? "bg-red-100 text-red-800 border-red-300 font-bold" : "bg-slate-100 text-slate-500 border-slate-200";
-                    return `<div class="flex justify-between text-[10px] px-2 py-1 mb-1 border rounded ${colorClass}"><span>${item.cont}</span><span>${item.dest}</span></div>`;
-                }).join('')
-                : `<div class="text-center text-slate-400 italic text-[10px] py-2">All containers matched!</div>`;
-
-            const modalHtml = `
-                <div id="summaryModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4" style="z-index: 200000;">
-                    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border-2 border-slate-300 flex flex-col max-h-[90vh]">
-                        <div class="bg-slate-800 text-white p-4 flex justify-between items-center shrink-0">
-                            <h3 class="font-black uppercase text-sm tracking-wide flex items-center gap-2">
-                                <i data-lucide="clipboard-check" class="w-5 h-5 text-emerald-400"></i> Update Summary
-                            </h3>
-                            <button id="cancelSummaryBtn" class="text-slate-400 hover:text-white transition-colors">
-                                <i data-lucide="x" class="w-6 h-6"></i>
-                            </button>
-                        </div>
-                        <div class="p-5 space-y-4 overflow-y-auto custom-scrollbar">
-                            <div class="flex flex-col gap-3 text-[11px] uppercase font-bold text-slate-600 bg-slate-50 p-3 rounded-2xl border border-slate-200">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-[10px] text-slate-400">Train No:</span>
-                                    <span class="text-blue-700 text-sm font-black">${rake}</span>
-                                </div>
-                                <div class="border-t border-slate-200 pt-2 mt-1">
-                                    <span class="block text-[9px] text-slate-500 mb-1">Departure Date & Time (dd-mm-yyyy hh:mm)</span>
-                                    <input type="text" id="summaryRailDateInput" placeholder="eg: 28-02-2026 03:00" class="w-full p-3 bg-white border border-slate-300 rounded-xl font-black text-center text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner">
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-3 gap-2 text-center">
-                                <div class="p-3 bg-slate-100 rounded-2xl border border-slate-200">
-                                    <span class="block text-[9px] font-bold text-slate-500 uppercase">Total</span>
-                                    <span class="text-xl font-black text-slate-800">${totalCount}</span>
-                                </div>
-                                <div class="p-3 bg-emerald-50 rounded-2xl border border-emerald-200">
-                                    <span class="block text-[9px] font-bold text-emerald-600 uppercase">Matched</span>
-                                    <span class="text-xl font-black text-emerald-700">${updates.length}</span>
-                                </div>
-                                <div class="p-3 bg-rose-50 rounded-2xl border border-rose-200">
-                                    <span class="block text-[9px] font-bold text-rose-600 uppercase">Missing</span>
-                                    <span class="text-xl font-black text-rose-700">${notUpdates.length}</span>
-                                </div>
-                            </div>
-                            <div>
-                                <p class="text-[10px] font-bold text-slate-700 uppercase mb-2 flex justify-between">
-                                    <span>Not Updated Containers:</span>
-                                    <span class="text-rose-600 text-[9px] italic">(Scroll to view)</span>
-                                </p>
-                                <div class="bg-slate-50 border border-slate-300 rounded-xl p-2 h-40 overflow-y-auto custom-scrollbar shadow-inner">
-                                    ${notUpdatedListHtml}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="p-4 bg-slate-100 border-t border-slate-200 flex justify-end gap-3 shrink-0">
-                            <button id="cancelSummaryBtn2" class="flex-1 py-3 bg-white border border-slate-300 text-slate-600 rounded-2xl text-[10px] font-black uppercase hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
-                            <button id="confirmUpdateBtn" class="flex-1 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase hover:bg-emerald-700 transition-all shadow-md flex items-center justify-center gap-2">
-                                <i data-lucide="save" class="w-4 h-4"></i> CONFIRM & SAVE
-                            </button>
-                        </div>
-                    </div>
-                </div>`;
-                
-            const existingModal = document.getElementById('summaryModal'); 
-            if (existingModal) existingModal.remove();
-            
-            const wrapper = document.createElement('div'); 
-            wrapper.innerHTML = modalHtml; 
-            document.body.appendChild(wrapper);
-            lucide.createIcons();
-
-            const closeModal = () => wrapper.remove();
-            
-            document.getElementById('cancelSummaryBtn').onclick = closeModal;
-            document.getElementById('cancelSummaryBtn2').onclick = closeModal;
-            
-            document.getElementById('confirmUpdateBtn').onclick = async function() {
-                if (updates.length === 0) return alert("No matched containers to update.");
-                
-                const dt = document.getElementById('summaryRailDateInput').value.trim();
-                if (!dt) return alert("Please enter Departure Date & Time!");
-
-                this.disabled = true; 
-                this.innerText = "SAVING...";
-
-                const p = dt.split(' ')[0].split('-'); 
-                const railDate = new Date(p[2], p[1]-1, p[0]);
-                const eta = new Date(railDate); 
-                eta.setDate(eta.getDate() + 4);
-                
-                const etaDay = String(eta.getDate()).padStart(2,'0');
-                const etaMonth = String(eta.getMonth()+1).padStart(2,'0');
-                const etaYear = eta.getFullYear();
-                
-                const etaStr = ` ETA ${etaDay}-${etaMonth}-${etaYear} 00:00`;
-                const remarkFinal = `RAILOUT FROM MUNDRA ON ${dt}${etaStr}`;
-
-                updates.forEach(u => { 
-                    rawSheets.website[u.index][4] = u.data.rake; 
-                    rawSheets.website[u.index][8] = dt; 
-                    rawSheets.website[u.index][9] = remarkFinal; 
-                });
-                
-                await window.saveToCloud(); 
-                alert(`Successfully Updated ${updates.length} Containers!`); 
-                closeModal();
-            };
-        }
-
-        // Manual Date Logic (Double Stack)
-        document.getElementById('submitManualDateBtn').onclick = async function() {
-            const dt = document.getElementById('manualRailDateInput').value.trim();
-            if (!dt || !pendingExcelUpdateData) return;
-
-            this.disabled = true; 
-            this.innerText = "SAVING...";
-
-            const p = dt.split(' ')[0].split('-'); 
-            const railDate = new Date(p[2], p[1]-1, p[0]);
-            const eta = new Date(railDate); 
-            eta.setDate(eta.getDate() + 4);
-            
-            const etaDay = String(eta.getDate()).padStart(2,'0');
-            const etaMonth = String(eta.getMonth()+1).padStart(2,'0');
-            const etaYear = eta.getFullYear();
-                
-            const etaStr = ` ETA ${etaDay}-${etaMonth}-${etaYear} 00:00`;
-            const remark = `RAILOUT FROM MUNDRA ON ${dt}${etaStr}`;
-
-            let count = 0;
-            pendingExcelUpdateData.containers.forEach(item => {
-                const idx = rawSheets.website.findIndex(w => String(w[3]).trim().toUpperCase() === item.cont);
-                if (idx !== -1) {
-                    rawSheets.website[idx][4] = `${pendingExcelUpdateData.rakeNo}${item.stack !== 'Lower' ? '-'+item.stack : ''}`;
-                    rawSheets.website[idx][8] = dt; 
-                    rawSheets.website[idx][9] = remark;
-                    count++;
-                }
-            });
-            
-            await window.saveToCloud(); 
-            alert(`Updated ${count} containers.`);
-            
-            this.disabled = false; 
-            this.innerText = "UPDATE";
-            document.getElementById('manualDateModal').classList.add('hidden');
-        };
-
-        document.getElementById('cancelManualDateBtn').onclick = () => {
-            document.getElementById('manualDateModal').classList.add('hidden');
-        };
-
-        // --- RAKE TOOLS ---
-        function populateRakeList() {
-            if (!rawSheets.website || rawSheets.website.length <= 1) return;
-            const rakes = new Map();
-            rawSheets.website.slice(1).forEach(row => {
-                const r = String(row[4] || '').trim();
-                const rem = String(row[9] || '').toUpperCase();
-                if (r && r !== "-" && rem.includes("RAILOUT FROM")) {
-                    rakes.set(r, formatToDDMMYYYY_HHMM(row[8]));
-                }
-            });
-            const opt = '<option value="">SELECT RAKE</option>' + [...rakes.keys()].sort().map(r => `<option value="${r}" data-date="${rakes.get(r)}">${r} - ${rakes.get(r)}</option>`).join('');
-            document.getElementById('rakeSelect').innerHTML = opt;
-            document.getElementById('rakeSelectFnr').innerHTML = opt;
-        }
-
-        document.getElementById('rakeSelect').onchange = (e) => {
-            const selected = e.target.selectedOptions[0];
-            const rakeVal = e.target.value.trim();
-            const selectedRailDate = selected ? (selected.dataset.date || '') : '';
-            
-            if (rakeVal) {
-                const baseRake = rakeVal.replace(/\([\d]{11}\)$/, '').trim();
-                const matchingRow = rawSheets.website.slice(1).find(row => {
-                    const rowRakeFull = String(row[4] || '').trim();
-                    const rowBaseRake = rowRakeFull.replace(/\([\d]{11}\)$/, '').trim();
-                    const rowFormattedDate = formatToDDMMYYYY_HHMM(row[8]);
-                    const currentRemark = String(row[9] || '').toUpperCase();
-                    return rowBaseRake === baseRake && rowFormattedDate === selectedRailDate && currentRemark.includes("RAILOUT FROM");
-                });
-                document.getElementById('customRemarksInput').value = matchingRow ? matchingRow[9] : '';
-            } else { 
-                document.getElementById('customRemarksInput').value = ''; 
-            }
-        };
-
-        document.getElementById('updateArrivedBtn').onclick = async function() {
-            const rake = document.getElementById('rakeSelect').value;
-            const rawDate = document.getElementById('arrivedDateInput').value;
-            if (!rake || !rawDate) return alert("Select Rake & Time");
-            
-            this.disabled = true; 
-            this.innerText = "UPDATING...";
-
-            const d = new Date(rawDate);
-            const dd = String(d.getDate()).padStart(2,'0');
-            const mm = String(d.getMonth()+1).padStart(2,'0');
-            const yyyy = d.getFullYear();
-            const hh = String(d.getHours()).padStart(2,'0');
-            const min = String(d.getMinutes()).padStart(2,'0');
-            
-            const fmt = `${dd}-${mm}-${yyyy} ${hh}:${min}`;
-            
-            let count = 0;
-            rawSheets.website.slice(1).forEach(row => {
-                if (String(row[4]).trim() === rake && String(row[9] || '').toUpperCase().includes("RAILOUT FROM")) {
-                    row[9] = `TRAIN ARRIVED ON ${fmt} & UNLOADING DONE ${fmt}`;
-                    count++;
-                }
-            });
-            if (count > 0) { 
-                await window.saveToCloud(); 
-                alert(`Updated ${count} records.`); 
-            }
-            
-            this.disabled = false; 
-            this.innerText = "UPDATE ARRIVAL";
-        };
-
-        document.getElementById('updateCustomRemarksBtn').onclick = async function() {
-            const selectEl = document.getElementById('rakeSelect');
-            const selectedOption = selectEl.selectedOptions[0];
-            const selectedFormattedRake = selectEl.value.trim();
-            const newRemark = document.getElementById('customRemarksInput').value.trim();
-
-            if (!selectedFormattedRake || !selectedOption) return alert("Please select a Rake No first.");
-            const selectedRailDate = selectedOption.dataset.date;
-            if (!selectedRailDate) return alert("Selected Rake has no valid date.");
-            if (!newRemark) return alert("Remark field cannot be empty.");
-
-            if(!confirm(`Are you sure you want to update remarks for:\nTrain: ${selectedFormattedRake}\nDate: ${selectedRailDate}\n\nNew Remark: "${newRemark}"`)) return;
-
-            this.disabled = true; 
-            this.innerText = "UPDATING...";
-            
-            const baseRake = selectedFormattedRake.replace(/\([\d]{11}\)$/, '').trim();
-            let count = 0;
-
-            rawSheets.website.slice(1).forEach(row => {
-                const rowRakeFull = String(row[4] || '').trim();
-                const rowBaseRake = rowRakeFull.replace(/\([\d]{11}\)$/, '').trim();
-                const rowFormattedDate = formatToDDMMYYYY_HHMM(row[8]);
-                const currentRemark = String(row[9] || '').toUpperCase();
-
-                if (rowBaseRake === baseRake && rowFormattedDate === selectedRailDate && currentRemark.includes("RAILOUT FROM")) {
-                    row[9] = newRemark;
-                    count++;
-                }
-            });
-
-            if (count > 0) { 
-                await window.saveToCloud(); 
-                alert(`✓ Remarks Updated Successfully!\nCount: ${count} containers`); 
-                document.getElementById('customRemarksInput').blur();
-            } else {
-                alert("No matching containers found!\nCheck if:\n1. Train & Date match\n2. Existing remarks contain 'RAILOUT FROM'");
-            }
-            
-            this.disabled = false; 
-            this.innerText = "UPDATE REMARKS";
-        };
-
-        // --- CSV & HTPL Tools ---
-        document.getElementById('downloadWebsiteCsvBtn').onclick = () => {
-            const data = rawSheets.website;
-            if (!data || data.length <= 1) return alert("No data available!");
-
-            const today = new Date();
-            const currentYear = today.getFullYear();
-            const currentMonth = today.getMonth();
-            const lastMonthDate = new Date(today); 
-            lastMonthDate.setMonth(currentMonth - 1);
-            
-            const lastMonth = lastMonthDate.getMonth();
-            const lastMonthYear = lastMonthDate.getFullYear();
-
-            const filtered = data.slice(1).filter(row => {
-                const rdStr = String(row[8] || '').trim().toUpperCase();
-                if (rdStr === "PENDING") return true;
-                
-                const fmt = formatToDDMMYYYY_HHMM(row[8]);
-                if (!fmt || !fmt.includes('-')) return false;
-                
-                const parts = fmt.split(' ')[0].split('-');
-                const y = parseInt(parts[2]);
-                const m = parseInt(parts[1]) - 1;
-                
-                return (y === currentYear && m === currentMonth) || (y === lastMonthYear && m === lastMonth);
-            });
-
-            if (!filtered.length) return alert("No data found for current/last month or pending.");
-
-            const header = data[0].slice();
-            filtered.sort((a,b) => String(a[2]).trim().localeCompare(String(b[2]).trim()));
-
-            let currentBill = null;
-            let counter = 1;
-            filtered.forEach(row => {
-                if (String(row[2]).trim() !== currentBill) { 
-                    currentBill = String(row[2]).trim(); 
-                    counter = 1; 
-                }
-                row[1] = counter++;
-            });
-
-            const safeFormat = (val) => {
-                const f = formatToDDMMYYYY_HHMM(val);
-                if (f && f.includes('-') && f.includes(' ')) {
-                    const p = f.split(' '); 
-                    const dp = p[0].split('-');
-                    return `${dp[0]}-${dp[1]}-${dp[2].slice(-2)} ${p[1]}`;
-                }
-                return String(val);
-            };
-
-            const csv = [header, ...filtered].map((row, rIdx) => {
-                return row.map((cell, cIdx) => {
-                    let v = cell == null ? "" : String(cell);
-                    if (cIdx === 4 && rIdx > 0) v = v.split('(')[0].trim();
-                    if (cIdx === 8 && rIdx > 0 && v !== "") v = safeFormat(v);
-                    return v.includes(",") ? `"${v}"` : v;
-                }).join(",");
-            }).join("\n");
-
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a"); 
-            link.href = URL.createObjectURL(blob);
-            link.download = `IMPORT_Data_${new Date().toLocaleDateString('en-GB').replace(/\//g,'-')}.csv`; 
-            link.click();
-        };
-
-        document.getElementById('deleteHtplUid103Btn').onclick = () => {
-            if (!confirm("Delete HTPL Website data (UID=103)?")) return;
-            const fd = new FormData(); 
-            fd.append('UID', '103'); 
-            fd.append('delete', 'Delete');
-            
-            fetch('https://www.hindterminals.com/Container%20Tracking%20System/Import/Delete%20Function/delete.php', { 
-                method: 'POST', body: fd, mode: 'no-cors' 
-            }).then(() => alert("Delete request sent!"))
-              .catch(e => alert("Error: " + e.message));
-        };
-
-        const csvInput = document.getElementById('hiddenHtplCsvInput');
-        csvInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file || !confirm(`Upload ${file.name} to HTPL server?`)) return;
-            
-            const fd = new FormData(); 
-            fd.append('file', file); 
-            fd.append('submit', 'Import');
-            
-            fetch('https://www.hindterminals.com/Container%20Tracking%20System/Import/Upload/index-2.php', { 
-                method: 'POST', body: fd, mode: 'no-cors' 
-            }).then(() => alert("Upload request sent!"))
-              .catch(e => alert("Error: " + e.message));
-              
-            e.target.value = ''; 
-        };
-        
-        document.getElementById('uploadCsvToHtplBtn').onclick = () => {
-            csvInput.click();
-        };
-
-        // --- SMTP UPLOAD ---
-        document.getElementById('smtpExcelInput').onchange = (e) => {
-            const reader = new FileReader();
-            reader.onload = async (evt) => {
-                const wb = XLSX.read(evt.target.result, { type: 'binary' });
-                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
-                const activeIndices = [1, 2, 3, 5, 9, 11, 13, 17, 18, 22, 23, 24, 26];
-                
-                if (!rawSheets.website || !rawSheets.website.length) {
-                    rawSheets.website = [["UID", "SR_NO", "BILL_NO", "CONTAINER_NO", "RAKE_NO", "STACK", "SOURCE", "DESTINATION", "RAILING_DATE", "REMARKS"]];
-                }
-                
-                let added = 0;
-                let webAdded = 0;
-                
-                json.slice(1).forEach(row => {
-                    const cont = String(row[2] || '').trim().toUpperCase();
-                    const dest = String(row[11] || '').toUpperCase();
-                    
-                    if (cont && (dest.includes("KILARAIPUR") || dest.includes("LUDHIANA"))) {
-                        if (!rawSheets.smtp.some(s => String(s[2]).trim().toUpperCase() === cont)) {
-                            let opt = new Array(27).fill(""); 
-                            activeIndices.forEach(i => { opt[i] = row[i] ?? ""; });
-                            rawSheets.smtp.push(opt); 
-                            added++;
-                        }
-                        if (!rawSheets.website.some(w => String(w[3]).trim().toUpperCase() === cont)) {
-                            const tp = formatToDDMMYYYY(row[18] || row[17]);
-                            rawSheets.website.push([103, rawSheets.website.length, row[9], cont, "-", "Lower", "Mundra", "KILARAIPUR", "Pending", `CONTAINER HANDOVER TO HTPL ON ${tp}`]);
-                            webAdded++;
-                        }
-                    }
-                });
-                await window.saveToCloud(); 
-                alert(`Sync Complete!\nAdded to SMTP: ${added}\nSynced to Website: ${webAdded}`);
-            };
-            reader.readAsBinaryString(e.target.files[0]);
-        };
-
-        // --- HKR/HMR EXCEL ---
-        document.getElementById('hkrHmrExcelInput').onchange = async (e) => {
-            const reader = new FileReader();
-            reader.onload = async (evt) => {
-                const wb = XLSX.read(evt.target.result, { type: 'binary' });
-                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
-                let saved = [];
-                
-                json.slice(1).forEach(row => {
-                    const ctrNo = String(row[4] || '').trim().toUpperCase();
-                    const dest = String(row[7] || '').toUpperCase();
-                    let rem = "";
-                    
-                    if (dest.includes("KILA RAIPUR BLOCK - MSC")) rem = "HMR";
-                    else if (dest.includes("RANGIAN")) rem = "HKR";
-                    else if (dest.includes("LUDHIANA") || dest.includes("LUDHIYANA")) rem = "HDL";
-                    
-                    if (rem) {
-                        saved.push({ 
-                            vessel_name: row[1], 
-                            eta_dttm: formatToDDMMYYYY_HHMM(row[2]), 
-                            ctr_no: ctrNo, 
-                            ctr_size: row[5], 
-                            destination_name: row[7], 
-                            line_code: row[8], 
-                            assigned_remark: rem, 
-                            upload_timestamp: new Date().toISOString() 
-                        });
-                        const smtpIdx = rawSheets.smtp.findIndex(s => String(s[2]).trim().toUpperCase() === ctrNo);
-                        if (smtpIdx !== -1) {
-                            rawSheets.smtp[smtpIdx][22] = rem;
-                        }
-                    }
-                });
-                rawSheets.hkrHmrFiltered = saved;
-                await window.saveToCloud();
-                alert(`Processed ${saved.length} matching containers.`);
-            };
-            reader.readAsBinaryString(e.target.files[0]);
-        };
-
-        // --- ADD SHIPPER TOOLS ---
-        function resetAddShipperForm() {
-            matchedContainers = []; 
-            document.getElementById('manualBlInput').value = '';
-            document.getElementById('manualShipperNameInput').value = ''; 
-            document.getElementById('blMatchStatus').innerText = '';
-            document.getElementById('containerPreviewArea').classList.add('hidden'); 
-            document.getElementById('previewList').innerHTML = '';
-        }
-
-        document.getElementById('manualBlInput').oninput = (e) => {
-            const bl = e.target.value.trim().toUpperCase();
-            const status = document.getElementById('blMatchStatus');
-            
-            if (bl.length < 4) { 
-                status.innerText = ''; 
-                return; 
-            }
-            
-            const matches = rawSheets.smtp.slice(1).filter(r => String(r[9] || '').toUpperCase() === bl);
-            if (matches.length > 0) {
-                matchedContainers = matches.map(r => ({ 
-                    cont: String(r[2]).trim(), 
-                    size: String(r[3]).includes('40') ? '40' : '20', 
-                    bl: bl 
-                }));
-                status.innerText = `✅ Found ${matches.length} containers in SMTP`;
-                document.getElementById('manualShipperNameInput').value = matches[0][24] || '';
-                renderPreview();
-            } else { 
-                status.innerText = '⚠️ B/L not in SMTP. Add manual.'; 
-            }
-        };
-
-        window.removeTempCont = (idx) => { 
-            matchedContainers.splice(idx, 1); 
-            renderPreview(); 
-        };
-
-        function renderPreview() {
-            const area = document.getElementById('containerPreviewArea');
-            const list = document.getElementById('previewList');
-            if (matchedContainers.length) {
-                area.classList.remove('hidden');
-                list.innerHTML = matchedContainers.map((m, i) => `
-                    <li class="flex justify-between items-center bg-teal-50 p-3 rounded-xl border border-teal-100">
-                        <span class="text-xs font-black text-teal-800 tracking-tight">${m.cont} (${m.size}")</span>
-                        <button onclick="window.removeTempCont(${i})" class="text-rose-500">
-                            <i data-lucide="x-circle" class="w-4 h-4"></i>
-                        </button>
-                    </li>
-                `).join('');
-                lucide.createIcons();
-            } else {
-                area.classList.add('hidden');
-            }
-        }
-
-        document.getElementById('addManualToPreviewBtn').onclick = () => {
-            const cont = document.getElementById('manualSingleCont').value.trim().toUpperCase();
-            const size = document.getElementById('manualSingleSize').value;
-            if (!cont) return;
-            if (matchedContainers.some(m => m.cont === cont)) return alert("Already added.");
-            
-            matchedContainers.push({ 
-                cont, 
-                size, 
-                bl: document.getElementById('manualBlInput').value || 'MANUAL' 
-            });
-            document.getElementById('manualSingleCont').value = '';
-            renderPreview();
-        };
-
-        document.getElementById('saveManualShipperBtn').onclick = async () => {
-            const name = document.getElementById('manualShipperNameInput').value.trim().toUpperCase();
-            if (!name || !matchedContainers.length) return alert("Missing name or containers");
-            let added = 0;
-            
-            matchedContainers.forEach(m => { 
-                if (!rawSheets.shipper.some(s => String(s[0]).trim() === m.cont)) { 
-                    rawSheets.shipper.push([m.cont, m.size, m.bl, name]); 
-                    added++; 
-                } 
-            });
-            
-            if (added > 0) { 
-                await window.saveToCloud(); 
-                alert(`Success! ${added} containers linked.`); 
-                resetAddShipperForm(); 
-            } else {
-                alert("No new containers added.");
-            }
-        };
-
-        // --- AUTH BUTTON ---
-        document.getElementById('authBtn').onclick = () => {
-            if (document.getElementById('loginPassword').value === "16111980" || true) {
-                document.getElementById('loginScreen').style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('loginScreen').classList.add('hidden');
-                }, 500);
-                
-                if (!auth.currentUser) {
-                    initAuth();
-                } else {
-                    window.loadData(true);
-                }
-            } else {
-                document.getElementById('loginError').classList.remove('hidden');
-            }
-        };
-
-        // --- FNR TRACKING ---
-        document.getElementById('openFoisWithFnrBtn').onclick = () => {
-            const r = document.getElementById('rakeSelectFnr').value;
-            if (!r) return alert("Select Rake");
-            
-            const match = r.match(/\(([\d]{11})\)/);
-            let fnr = match ? match[1] : prompt("Enter 11-digit FNR:");
-            
-            if (fnr && fnr.length === 11) {
-                window.open(`https://www.fois.indianrail.gov.in/RailSAHAY/pages/FNREnquiryOT.jsp?txtFnrNumb=${fnr}`, '_blank');
-            } else {
-                alert("Valid 11-digit FNR required.");
-            }
-        };
-
-        document.getElementById('linkFnrBtn').onclick = async () => {
-            const rake = document.getElementById('rakeSelectFnr').value;
-            if (!rake) return;
-            
-            const fnr = prompt("Enter 11-digit FNR:");
-            if (!fnr || fnr.length !== 11) return alert("Invalid FNR");
-            
-            const baseRake = rake.replace(/\([\d]{11}\)$/, '').trim();
-            const newRake = `${baseRake}(${fnr})`;
-            
-            rawSheets.website.slice(1).forEach(row => {
-                if (String(row[4]).replace(/\([\d]{11}\)$/, '').trim() === baseRake) {
-                    row[4] = newRake;
-                }
-            });
-            
-            await window.saveToCloud();
-            populateRakeList();
-            alert("FNR Linked.");
-        };
-
-        lucide.createIcons();
-    </script>
+        // Phase 3: Save to cloud
+        await smoothProgressTo(88, 350, 'Saving to Firestore database...', '☁️');
+        await saveRawSheetsToCloud();
+
+        // Phase 4: Done
+        await smoothProgressTo(100, 200, '✓ All Saved Successfully!', '✅');
+        await sleep(700);
+
+        closeProgressModal();
+        if (pTitle) pTitle.innerText = 'Saving Email ID'; // reset
+
+        // Clear saved inputs & update buttons
+        toSave.forEach(({ contNo }) => {
+            const inp = document.getElementById(`email-${contNo}`);
+            const btn = document.getElementById(`btn-${contNo}`);
+            if (inp) inp.value = '';
+            if (btn) { btn.className = 'save-btn save-btn-saved'; btn.innerText = '✓ Saved'; }
+        });
+
+        const msg = failedConts.length
+            ? `${toSave.length - failedConts.length} saved. ${failedConts.length} not found.`
+            : `${toSave.length} email(s) saved successfully!`;
+        showToast(msg, failedConts.length ? 'error' : 'success');
+        renderContainers(selectedBL);
+
+    } catch (e) {
+        console.error('Save All error:', e);
+        closeProgressModal();
+        if (pTitle) pTitle.innerText = 'Saving Email ID';
+        if (saveAllBtn) saveAllBtn.disabled = false;
+        showToast(`Save failed: ${e.message || 'Check internet'}`, 'error');
+    }
+};
+
+// ===================================
+// SAVE SINGLE CONTAINER EMAIL (Directly into rawSheets.shipper)
+// ===================================
+async function saveSingleContainer(contNo) {
+    const emailInput = document.getElementById(`email-${contNo}`);
+    const btn = document.getElementById(`btn-${contNo}`);
+    if (!emailInput || !btn) return;
+
+    const newEmail = emailInput.value.trim();
+    if (!newEmail) {
+        showToast('Please enter an Email ID first.', 'error');
+        return;
+    }
+
+    openProgressModal(contNo);
+    btn.disabled = true;
+    btn.innerText = 'Saving...';
+
+    try {
+        await smoothProgressTo(25, 250, 'Connecting to Firebase cloud...', '⚡');
+        await smoothProgressTo(50, 300, 'Fetching live Firebase records...', '🔄');
+        rawSheets = await loadRawSheets();
+
+        await smoothProgressTo(75, 250, 'Updating email mapping...', '📝');
+        const updated = applyEmailToSheets(contNo, newEmail);
+        if (!updated) throw new Error(`Container ${contNo} not found in shipper data`);
+
+        await smoothProgressTo(92, 350, 'Saving to Firestore database...', '☁️');
+        await saveRawSheetsToCloud();
+
+        await smoothProgressTo(100, 200, '✓ Saved Successfully!', '✅');
+        await sleep(650);
+
+        closeProgressModal();
+        btn.className = 'save-btn save-btn-saved';
+        btn.innerText = '✓ Saved';
+        emailInput.value = '';
+        showToast(`Email saved for ${contNo}!`, 'success');
+        renderContainers(selectedBL);
+
+    } catch (e) {
+        console.error("Save error:", e);
+        closeProgressModal();
+        btn.className = 'save-btn save-btn-primary';
+        btn.innerText = 'Update & Save';
+        btn.disabled = false;
+        showToast(`Save failed: ${e.message || 'Check internet'}`, 'error');
+    }
+}
+</script>
 </body>
 </html>
